@@ -1,0 +1,71 @@
+<?php
+
+namespace common\models\fcm;
+
+use Yii;
+use yii\web\ServerErrorHttpException;
+use common\jobs\FcmQueueJob;
+use common\models\InstapPlanPool;
+use common\models\User;
+use common\models\fcm\SysFcmMessage;
+use common\models\fcm\PushNotification;
+
+class FcmPlanStatusChanged extends \yii\base\Model
+{
+    public $notification;
+
+    public function __construct($plan_pool){ 
+        $this->notification = new PushNotification();
+        $copy = $this->getCopy($plan_pool);
+        $this->notification->customSetAttributes(PushNotification::TYPE_INBOX, ["title"=>$copy[0], "summary"=>$copy[1], "body"=>$copy[2]]);
+        $this->notification->setRecipient(PushNotification::RECIPIENT_TYPE_DEVICE , $plan_pool->user_id);
+    }
+
+    private function getCopy($plan_pool) {
+        date_default_timezone_set("Asia/Singapore");
+        $copy = ['Title', 'Subtitle', 'Body'];
+        switch ($plan_pool->plan_status) {
+            case InstapPlanPool::STATUS_PENDING_REGISTRATION:
+                $copy = [Yii::t("common",'Plan is pending registration'), $plan_pool->policy_number, Yii::t("common",'Please register your plan within 3 days from date of purchase.').'(By '.date('h:i A d/m/Y', ($plan_pool->updated_at + 259139)).')'];
+                break;
+            case InstapPlanPool::STATUS_PENDING_APPROVAL:
+                $copy = [Yii::t("common",'Plan is pending approval'), $plan_pool->policy_number, Yii::t("common",'Plan is pending approval.')];
+                break;
+            case InstapPlanPool::STATUS_REQUIRE_CLARIFICATION:
+                $copy = [Yii::t("common",'Registration requires more details'), $plan_pool->policy_number, Yii::t("common",'Please provide more details.')];
+                break;
+            case InstapPlanPool::STATUS_ACTIVE:
+                $copy = ['Plan activated', $plan_pool->policy_number, Yii::t("common",'Plan is activated. Have your peace of mind.')];
+                break;
+            case InstapPlanPool::STATUS_PENDING_CLAIM:
+                $copy = [Yii::t("common",'Plan is pending claim'), $plan_pool->policy_number, Yii::t("common",'Our staff is reviewing your claim.')];
+                break;                                
+            case InstapPlanPool::STATUS_COMPLETE_CLAIM:
+                $copy = [Yii::t("common",'Plan completed claim'), $plan_pool->policy_number, Yii::t("common",'Plan has completed claim.')];
+                break;
+            case InstapPlanPool::STATUS_EXPIRED:
+                $copy = [Yii::t("common",'Plan expired'), $plan_pool->policy_number, Yii::t("common",'Plan is expired.')];
+                break;                  
+            case InstapPlanPool::STATUS_CANCEL:
+                $copy = [Yii::t("common",'Plan cancelled'), $plan_pool->policy_number, Yii::t("common",'Plan is cancelled.')];
+                break;                
+            case InstapPlanPool::STATUS_REJECT:
+                $copy = [Yii::t("common",'Plan rejected'), $plan_pool->policy_number, Yii::t("common",'Plan is rejected.')];
+                break;
+
+
+            default:
+                
+        }
+        return $copy;
+    }
+
+    public function send(){
+        if($this->notification->saveInbox()){
+            $this->notification->send();
+        } else {
+            Yii::warning($this->notification->getMessage(), 'api');
+        }
+    }
+    
+}

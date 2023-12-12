@@ -1,0 +1,262 @@
+@import 'var.scss';
+
+.site-index {
+	height: 100%;
+
+}
+
+/////////////////////////////////////
+.site-index, .site-app-download,  {
+	
+	.wrapper {
+		min-height: 100px;
+		height: auto !important;
+		height: 100%;
+		margin: 0 auto -100px;
+		width: 100%;
+	}	
+	.logo-wrapper {
+		width: 100%;
+	}
+	.logo-wrapper td {
+		vertical-align: middle;
+		text-align: center;
+	}
+	div.store-holder {
+		margin: 0 auto;
+		max-width: 830px;
+		height: auto;
+		min-height: 650px;
+		/*
+		position: absolute;
+		top: 40%;
+		left: 50%;
+		width: 300px;
+		height: 300px;
+		margin-top: -150px;
+		margin-left: -150px;
+		text-align: center;
+		*/
+		.menu-title {
+			font-size: 1.5em;
+		}
+		p {
+			padding-top: 10px;
+			text-align: justify;
+		}
+		ul { margin-left:10%; text-align:left; }
+	}
+
+	img.appstore {
+		display: inline-block;
+		width: 127px;
+		height: 44px;
+	}
+	img.googleplay {
+		display: inline-block;
+		width: 148px;
+		height: 44px;
+	}
+	img.revez {
+		display: inline-block;
+		width: 169px;
+		height: 15px;
+	}
+
+}
+
+/////////////////////////////////////
+.site-language {
+	.language-holder {
+		div {
+			text-align: center;
+			a { color:$ip-blue; font-size: 20px; text-decoration:none; }
+			a:hover { color:$light-blue; }
+		}		
+	}
+	//styles in anti-fraud.scss
+}
+
+/////////////////////////////////////
+.site-login, .site-signup, .site-request-password-reset, .site-reset-password {
+
+	.overview{
+		//text-align: left;
+		margin: 30px auto 50px auto;	
+		width: 430px;
+
+		.form-holder {
+			padding: 20px;
+		    border: 1px solid rgba(0,0,0,0.125);
+		    box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+		    border-radius: 5px;
+		    
+
+		    .btn-custom {
+		    	font-size: 1.3em;
+		    	width: 70%;
+		    }
+		    .oauth-holder {
+		    	//text-align: center;
+			    .btn-facebook {
+			    	width: 80%;	
+			    	margin: 0 auto;
+			    }
+		    }
+		}
+		.bottom-text {
+			margin-top: 5px;
+			color: #999;
+		}
+
+		.permission { margin-top: 5px; }
+
+		@media screen and (max-width: $break-small) {
+			width: 350px;
+		}
+	}
+}
+
+/////////////////////////////////////
+.site-signup {
+	
+}
+/////////////////////////////////////
+.site-reset-password {
+	
+}
+/////////////////////////////////////
+.site-request-password-reset {
+	.form-group {
+		margin-bottom: 0;
+	}	
+}
+
+/////////////////////////////////////
+.site-error {
+	.error-alert {
+		color: $alert-color;
+		margin: 80px 0 0 0;
+	}
+}
+
+/////////////////////////////////////
+.site-activate {
+
+	.container {
+		width:100%; max-width:800px; margin: 0 auto;
+		.title { margin-top:0; }
+
+		.hint-holder { 
+			position: relative;  margin:10px auto; 
+			canvas { width: 100%; background:$disabled-color; }
+			.hint-bg {  
+				position:absolute; background:$primary-theme-color;
+				opacity:0.9; width:100%; bottom:5px;
+				text-align:center;  
+
+				p { font-size:25px; margin-top:5px; color:#333333; }
+				
+			}	
+		}
+
+		.photo-container { 
+			width:100%; 
+			img { width:33%; }
+		}
+
+
+		.instruction {
+			text-align: center;
+
+			
+
+			img.appstore {
+				margin: 10px 0 20px 0;
+				display: inline-block;
+				width: 127px;
+				height: 44px;
+			}
+			img.googleplay {
+				margin: 10px 0 20px 0;
+				display: inline-block;
+				width: 148px;
+				height: 44px;
+			}
+
+			img.screen {
+				margin: 10px 0 20px 0;
+				border: 1px solid #333;
+				display: inline-block;
+				width: 150px;
+			}
+		}
+
+
+		@media screen and (max-width: $break-small) {
+			h1 { font-size:26px }
+		}
+		
+	}
+}
+
+
+/////////////////////////////////////
+.site-terms {
+
+}
+
+
+/////////////////////////////////////
+.site-privacy {
+	
+
+}
+
+
+
+
+/////////////////////////////////////
+.site-faqs {
+
+
+
+    .faq-collapse{
+      .panel {  
+        border: 0;
+        -webkit-box-shadow: none;
+        moz-box-shadow: none;
+        box-shadow: none;
+        .panel-heading {
+          color: #333;
+          background-color: transparent;
+          border: 0;
+          .panel-title {
+            a { 
+              text-decoration: none; font-style: italic;
+              i {
+                color: $primary-theme-light-color;
+              }
+            }
+          }
+        }
+        .panel-collapse {
+          .panel-body {
+            border: 0;
+            padding: 0 15px 10px 37px;
+            color: #888;
+          }
+        }
+
+      }
+    }
+
+
+}
+
+
+///////////////////////////////////////////
+//test
+.white-bg {
+	background-color: white;
+}

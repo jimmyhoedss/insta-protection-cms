@@ -1,0 +1,261 @@
+<?php
+
+namespace common\models;
+
+use Yii;
+use yii\behaviors\TimestampBehavior;
+use yii\behaviors\BlameableBehavior;
+use common\components\MyCustomActiveRecord;
+use common\components\Utility;
+use common\models\DealerOrder;
+use common\models\InstapPlanPool;
+use common\models\UserPlanDetail;
+use common\models\UserPlanAction;
+use common\models\UserPlanActionDocument;
+use common\models\UserCase;
+use common\models\UserCaseAction;
+use common\models\UserCaseRepairCentre;
+use common\models\QcdRepairCentre;
+
+//\yii\db\ActiveRecord
+
+class UserPlan extends MyCustomActiveRecord
+{
+    /*
+    //same as InstapPlanPool
+    const STATUS_PENDING_REGISTRATION = "pending_registration";
+    const STATUS_PENDING_APPROVAL = "pending_approval";
+    const STATUS_REQUIRE_CLARIFICATION = "require_clarification";
+    const STATUS_ACTIVE = "active";
+    const STATUS_PENDING_CLAIM = "pending_claim";
+    const STATUS_COMPLETE_CLAIM = "complete_claim";
+    const STATUS_EXPIRED = "expired";
+    const STATUS_CANCEL = "cancel";
+    const STATUS_REJECT = "reject";
+
+    const STATUS_TYPE_ALL = "all"; 
+    const STATUS_TYPE_ACTIVE = "active"; 
+    const STATUS_TYPE_INACTIVE = "inactive"; 
+    */
+    public function init() {
+        //default
+        $this->current_plan_status = InstapPlanPool::STATUS_PENDING_REGISTRATION;
+    }
+
+    public static function tableName() {
+        return 'user_plan';
+    }
+
+    public function behaviors() {
+        return [
+            "timestamp" => TimestampBehavior::className(),
+            "blame" => BlameableBehavior::className(),
+        ];
+    }
+
+    public function rules() {
+        return [
+            [['user_id', 'plan_pool_id', 'current_plan_status'], 'required'],
+            [['user_id', 'plan_pool_id', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['status', 'current_plan_status'], 'string'],
+            [['plan_pool_id'], 'unique'],
+            ['current_plan_status', 'in', 'range' => array_keys(InstapPlanPool::allPlanStatus())]
+        ];
+    }
+
+    public function attributeLabels() {
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'user_id' => Yii::t('common', 'User ID'),
+            'plan_pool_id' => Yii::t('common', 'Plan Pool ID'),
+            'status' => Yii::t('common', 'Status'),
+            'current_plan_status' =>Yii::t('common', 'Current Plan Status'),
+            'created_at' => Yii::t('common', 'Created At'),
+            'created_by' => Yii::t('common', 'Created By'),
+            'updated_at' => Yii::t('common', 'Updated At'),
+            'updated_by' => Yii::t('common', 'Updated By'),
+        ];
+    }
+
+  
+
+    public function getPlanPool() {
+        return $this->hasOne(InstapPlanPool::class, ['id' => 'plan_pool_id']);
+    }
+
+    public function getDetails() {
+        return $this->hasOne(UserPlanDetail::class, ['plan_pool_id' => 'plan_pool_id']);
+    }
+    //to filter out plan_pool_id that belong to the owner
+    public static function getMatchedPlanPoolIdByUser($plan_pool_id_arr, $user_id) {
+       $userPlans = UserPlan::find()->where(['user_id' => $user_id])->all();
+       $pool_ids = array_column($userPlans, 'plan_pool_id');
+       $result = array_intersect($pool_ids, $plan_pool_id_arr);
+       if($result) {
+            return $result;
+       }
+
+       return null;
+    }
+
+    public function getPlanRegistrationPhotos(){
+        $pa = UserPlanAction::find()->andWhere(['plan_pool_id' => $this->plan_pool_id])->andWhere(['action_status' => UserPlanAction::ACTION_UPLOAD_PHOTO])->orderBy(['created_at'=>SORT_DESC])->limit(1)->one();
+        if ($pa == null) {
+            return [];
+        }
+        $actionPhotos = UserPlanActionDocument::find()->andWhere(['plan_action_id' => $pa->id])->all();
+        if ($actionPhotos == null) {
+            return [];
+        }
+        $photos = [];
+        for ($i=0; $i < count($actionPhotos); $i++) { 
+            $preSignImage = $actionPhotos[$i]->thumbnail_path ? Utility::getPreSignedS3Url($actionPhotos[$i]->thumbnail_path) : "";
+            array_push($photos, ["thumbnail_presigned" => $preSignImage, "created_by" => $actionPhotos[$i]->created_by]);
+        }
+        return $photos;
+    }
+    public function getPlanAssessmentPhotos(){
+        $pa = UserPlanAction::find()->andWhere(['plan_pool_id' => $this->plan_pool_id])->andWhere(['action_status' => UserPlanAction::ACTION_PHYSICAL_ASSESSMENT])->orderBy(['created_at'=>SORT_DESC])->limit(1)->one();
+        if ($pa == null) {
+            return [];
+        }
+
+        $actionPhotos = UserPlanActionDocument::find()->andWhere(['plan_action_id' => $pa->id])->all();
+        if ($actionPhotos == null) {
+            return [];
+        }
+
+        $photos = [];
+        for ($i=0; $i < count($actionPhotos); $i++) { 
+            $preSignImage = $actionPhotos[$i]->thumbnail_path ? Utility::getPreSignedS3Url($actionPhotos[$i]->thumbnail_path) : "";
+            array_push($photos, ["thumbnail_presigned" => $preSignImage, "created_by" => $actionPhotos[$i]->created_by]);
+        }
+        return $photos;
+    }
+
+    public function toObject() {
+        $m = $this;
+        $p = $m->planPool;
+        $plan = $p->plan;
+        $o = (object) [];
+        //path with presign 
+        //$path = Utility::replacePath($plan->thumbnail_path);
+        $preSignImage = $plan->thumbnail_path ? Utility::getPreSignedS3Url($plan->thumbnail_path) : "";
+        //InstapPlan
+        $instap_plan = (object) [];
+        $instap_plan->plan_pool_id = $p->id;
+        $instap_plan->plan_pool_status = $p->plan_status; 
+        $instap_plan->plan_category = $plan->category; 
+        $instap_plan->plan_tier = $plan->tier; 
+        $instap_plan->current_plan_action ="";
+        $instap_plan->policy_number = $p->policy_number;
+        $instap_plan->name = $plan->name;
+        $instap_plan->description = $plan->description;
+        $instap_plan->webview_url = $plan->policyPdf;
+        // $instap_plan->webview_url = $plan->webview_url;
+        $instap_plan->thumbnail_presigned = $preSignImage;
+        // $instap_plan->thumbnail_base_url = $plan->thumbnail_base_url;
+        // $instap_plan->thumbnail_path = $plan->thumbnail_path;
+        $instap_plan->coverage_start_at = $p->coverage_start_at;
+        $instap_plan->coverage_end_at = $p->coverage_end_at;
+        $o->instap_plan = $instap_plan;
+        $cps = get_object_vars($this->planActionObject($p));
+        if(!empty($cps)) {
+            $instap_plan->current_plan_action = $cps['current_plan_action'];
+        }
+
+        return $o;
+    }
+
+    public function categorizeByTier($models) {
+        $d = [];
+        if(!empty($models)) {
+            foreach ($models as $m) {
+                //form out tier object
+                $tier = $m->planPool->plan->tier;
+                $d[$tier][] = $m->toObject();
+            }
+        }
+        return $d;
+    }
+
+    public static function find() {
+        return new \common\models\query\UserPlanQuery(get_called_class());
+    }
+    //for record when adding from ad hoc
+    public static function makeModel($user, $pool) {
+        $m = new SELF();
+        $m->plan_pool_id = $pool->id;
+        $m->user_id = $user->id;
+        return $m;
+    }
+
+    public function planPhotoObject($pool) {
+
+        //plan action
+        $m = SELF::find()->where(['plan_pool_id' => $pool->id])->one();
+        $user_plan_action = (object) [];
+        $user_plan_action->plan_registration_photos = $m->planRegistrationPhotos;
+        $user_plan_action->plan_assessment_photos = $m->planAssessmentPhotos;
+
+        return $user_plan_action;
+    }  
+
+    public function planActionObject($pool) {
+        // print_r($pool->userCase);
+        // exit();
+        //the current_plan_action contain user_case_action and user_plan_action
+        $info_to_user = (object) [];
+        if($pool->plan_status == InstapPlanPool::STATUS_PENDING_CLAIM || $pool->plan_status == InstapPlanPool::STATUS_COMPLETE_CLAIM){
+
+            $case = UserCase::find()->where(['in', 'current_case_status', UserCase::statusNotReject()])->andWhere(['plan_pool_id'=>$pool->id])->orderBy(['created_at'=>SORT_DESC])->limit(1)->one();
+           
+            $current_action = UserCaseAction::find()->andWhere(['case_id'=>$case->id])->orderBy(['created_at'=>SORT_DESC])->limit(1)->one();
+            $repair_centre = $case->caseRepairCentre->repair_centre_id;
+            $repair_centres = QcdRepairCentre::find()->where(['id' => $repair_centre])->one();
+
+            if ($current_action) {
+                $info_to_user->current_plan_action= UserCase::mapActionToStatus()[$current_action->action_status];
+                $info_to_user->notes_user = $current_action->notes_user;
+                $info_to_user->created_at = $current_action->created_at;
+                $info_to_user->repair_centre = $repair_centres->toObject();
+            }
+
+        } else {
+                $current_action = UserPlanAction::find()->andWhere(['plan_pool_id'=>$pool->id])->orderBy(['created_at'=>SORT_DESC])->limit(1)->one();
+            if ($current_action) {
+                $info_to_user->current_plan_action = $current_action->action_status;
+                $info_to_user->notes_user = $current_action->notes_user;
+                $info_to_user->created_at = $current_action->created_at;
+            }
+        } 
+        return $info_to_user;
+    } 
+    //for my-plan-details api to list all plan details
+    public function allPlanDetailObject() {
+        $m = $this;
+        $o = (object) [];
+        $c = (object) [];
+        $pool = $m->planPool;
+        $du = $pool->dealerOrder->dealerUser;
+        $user_case = $pool->userCase;
+        $o->plan_pool_id = $pool->id;
+        $o->plan_category = $pool->plan->category;
+        $o->plan_tier = $pool->plan->tier;
+        $o->current_plan_status = $pool->plan_status;
+        $o->plan_info ="";
+        $o->media ="";
+        $o->current_action ="";
+        if( $m->details){
+            $o->plan_info = $m->details->toObject();
+        }
+        $o->current_action = $m->planActionObject($pool);
+        $o->media = $m->planPhotoObject($pool);
+        $dealer_user = DealerUser::find()->where(['user_id' => $du->id])->one();
+        $o->dealer_user = $dealer_user->dealerUserOject();
+
+        return $o;
+    }
+
+    
+}

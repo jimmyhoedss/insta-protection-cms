@@ -1,0 +1,74 @@
+{
+    "name": "ioiolab/instaprotection",
+    "authors": [
+        {
+            "name": "loy",
+            "email": "loytheman@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.4.0",
+        "yiisoft/yii2": "~2.0.14",
+        "yiisoft/yii2-bootstrap": "~2.0.0",
+        "yiisoft/yii2-swiftmailer": "~2.0.0 || ~2.1.0",
+        "yiisoft/yii2-queue": "^2.0@dev",
+        "npm-asset/font-awesome": "~5.1",
+        "almasaeed2010/adminlte": "~2.4",
+        "vlucas/phpdotenv": "^3.4@dev",
+        "yii2-starter-kit/yii2-file-kit": "dev-master",
+        "bower-asset/jquery-slimscroll": "dev-master",
+        "guzzlehttp/guzzle": "6.5.x-dev",
+        "aws/aws-sdk-php": "dev-master",
+        "league/flysystem-aws-s3-v3": "^1.0",
+        "trntv/cheatsheet": "^0.1@dev",
+        "trntv/yii2-command-bus": "^3.0",
+        "bower-asset/html5shiv": "dev-master",
+        "geoip2/geoip2": "~2.0",
+        "kartik-v/yii2-grid": "@dev",
+        "kartik-v/yii2-krajee-base": "@dev",
+        "kartik-v/yii2-widgets": "dev-master",
+        "php-amqplib/php-amqplib": "^2.11@dev",
+        "enqueue/amqp-lib": "^0.10.0@dev",
+        "linslin/yii2-curl": "*",
+        "codemix/yii2-localeurls": "dev-master",
+        "flow/jsonpath": "^0.5",
+        "kartik-v/yii2-mpdf": "dev-master",
+        "2amigos/yii2-chartjs-widget": "~2.0",
+        "bower-asset/chartjs": " ~2.6",
+        "kongoon/yii2-orgchart": "dev-master",
+        "kartik-v/yii2-export": "dev-master",
+        "kartik-v/yii2-date-range": "*",
+        "kartik-v/yii2-widget-activeform": "dev-master",
+        "yii2tech/csv-grid": "^1.0@dev"
+    },
+    "require-dev": {
+        "yiisoft/yii2-debug": "~2.1.0",
+        "yiisoft/yii2-gii": "~2.1.0",
+        "yiisoft/yii2-faker": "~2.0.0",
+        "phpunit/phpunit": "~6.5.5",
+        "symfony/browser-kit": ">=2.7 <=4.2.4",
+        "codeception/codeception": "^4.0",
+        "codeception/module-filesystem": "^1.0.0",
+        "codeception/verify": "~1.0.0",
+        "codeception/module-yii2": "dev-master",
+        "codeception/module-asserts": "^1.0.0",
+        "codeception/module-db": "dev-master",
+        "codeception/module-phpbrowser": "dev-master",
+        "codeception/module-rest": "dev-master",
+        "codeception/module-webdriver": "dev-master"
+
+    },
+    "config": {
+        "process-timeout": 1800,
+        "fxp-asset": {
+            "enabled": false
+        }
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ]
+}

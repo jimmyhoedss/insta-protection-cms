@@ -1,0 +1,142 @@
+<?php
+
+namespace common\models;
+
+use Yii;
+use common\components\Utility;
+use common\components\MyCustomActiveRecord;
+use common\models\DealerCompany;
+use common\models\InstapPlan;
+
+/**
+ * This is the model class for table "dealer_order_inventory".
+ *
+ * @property int $id
+ * @property int $plan_id
+ * @property int $dealer_company_id
+ * @property int|null $dealer_user_id
+ * @property int $plan_pool_id
+ * @property string $activation_token
+ * @property int $expire_at
+ * @property string $status
+ * @property int|null $created_at
+ * @property int|null $created_by
+ * @property int|null $updated_at
+ * @property int|null $updated_by
+ */
+class DealerOrderInventory extends MyCustomActiveRecord
+{
+    /**
+     * {@inheritdoc}
+     */
+    public static function tableName()
+    {
+        return 'dealer_order_inventory';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function rules()
+    {
+        return [
+            [['plan_id', 'dealer_company_id'], 'required'],
+            [['plan_id', 'dealer_company_id', 'dealer_user_id', 'plan_pool_id', 'expire_at', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['status'], 'string'],
+            [['activation_token'], 'string', 'max' => 256],
+            [['activation_token'], 'unique'],
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'plan_id' => Yii::t('common', 'Plan ID'),
+            'dealer_company_id' => Yii::t('common', 'Dealer Company ID'),
+            'dealer_user_id' => Yii::t('common', 'Dealer User ID'),
+            'plan_pool_id' => Yii::t('common', 'Plan Pool ID'),
+            'activation_token' => Yii::t('common', 'Activation Token'),
+            'expire_at' => Yii::t('common', 'Expire At'),
+            'status' => Yii::t('common', 'Status'),
+            'created_at' => Yii::t('common', 'Created At'),
+            'created_by' => Yii::t('common', 'Created By'),
+            'updated_at' => Yii::t('common', 'Updated At'),
+            'updated_by' => Yii::t('common', 'Updated By'),
+        ];
+    }
+
+    public static function makeModel($dealer_company_id, $plan_id) {
+        $m = new SELF();
+        $m->dealer_company_id = $dealer_company_id;
+        $m->plan_id = $plan_id;
+        return $m;
+    }
+
+    public static function insertAll($dealer_company_id, $plan_id, $amount) {
+        $connection = Yii::$app->getDb();
+        $sql = "INSERT INTO `dealer_order_inventory` (`id`, `dealer_company_id`, `plan_id`, `dealer_user_id`, `plan_pool_id`, `activation_token`, `expire_at`, `status`, `created_at`, `created_by`, `updated_at`, `updated_by`) VALUES ";
+        for($i=0; $i<$amount; $i++){
+            $sql .= "(NULL, '" .$dealer_company_id . "', '" .$plan_id . "', NULL, NULL, NULL, NULL, 'enabled', ".time().", NULL, ".time().", NULL),"; 
+        }
+        $sql = substr($sql, 0, -1);
+        $sql .= ";";
+        // print_r($sql);
+        $connection->createCommand($sql)->execute();
+    }
+    //test insert every 100 row, will time up when execute large amount of data
+    /*public static function activateAllStock($dealer_company_id, $plan_id, $amount) {
+        $loopCount = 0;
+        $data = array();
+        $connection = Yii::$app->getDb();
+        for($i=0; $i<$amount; $i++){
+            $loopCount++; 
+            $data[] = [NULL, $dealer_company_id, $plan_id, NULL, NULL, NULL, NULL,`enabled`, NULL, NULL, NULL, NULL];
+
+            if($loopCount%100 == 0 || $amount == $loopCount){                    
+                //execute query for every 100 rows or reached last row        
+                $connection->createCommand()->batchInsert(SElF::tableName(), ['id', 'dealer_company_id', 'plan_id', 'dealer_user_id', 'plan_pool_id', 'activation_token', 'expire_at', 'status', 'created_at', 'created_by', 'updated_at', 'updated_by'], $data)->execute();
+                //clear $data
+                $data = array();
+            }
+        }
+    }*/
+
+    public function getPlan() {
+        return $this->hasOne(InstapPlan::className(), ['id' => 'plan_id']);
+    }
+    public function getDealerCompany() {
+        return $this->hasOne(DealerCompany::class, ['id' => 'dealer_company_id']);
+    }
+
+    public function toObject() {
+        $m = $this;
+
+        $o = (object) [];
+        // $o->dealer_company_id = $m->dealer_company_id;
+        $o->plan_id = $m->plan_id;
+        $o->plan_name = $m->plan->name;
+        // $o->thumbnail_base_url = $m->plan->thumbnail_base_url;
+        $o->thumbnail_path = Utility::getPreSignedS3Url($m->plan->thumbnail_path);
+        $o->sku = $m->plan->sku;
+        return $o;
+    }
+
+    public static function retrieveAvailableStock($plan, $dealerCompany){
+        $stock = SELF::find()->andWhere(['plan_id' => $plan->id])->andWhere(['dealer_company_id' => $dealerCompany->id])->andWhere(['plan_pool_id' => null])->andWhere(['or', ['activation_token'=>null], ['<','expire_at',time()]])->andWhere(['status' => MyCustomActiveRecord::STATUS_ENABLED])->one();
+        // print_r($stock->createCommand()->getRawSql());
+        // exit();
+        return $stock;
+    }
+
+    /*public function prepareForOrder($dealer_user_id){
+
+            $this->activation_token = Utility::randomToken(64);
+            $this->expire_at = time() + 60;
+            $this->dealer_user_id = $dealer_user_id;
+
+    }*/
+}

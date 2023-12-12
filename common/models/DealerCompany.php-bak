@@ -1,0 +1,514 @@
+<?php
+
+namespace common\models;
+
+use Yii;
+use common\models\User;
+use common\models\DealerUser;
+use common\models\DealerCompanyDealer;
+use common\models\InstapPlanDealerCompany;
+use common\models\InstapPlan;
+use common\models\SysRegion;
+use common\models\DealerOrderInventoryOverview;
+use yii\helpers\ArrayHelper;
+use yii\helpers\Url;
+use common\components\MyCustomActiveRecord;
+use common\components\Utility;
+
+
+
+class DealerCompany extends MyCustomActiveRecord
+{
+    const ALLOCATION_MODE_NONE = "none";
+    const ALLOCATION_MODE_ALLOCATE = "allocate_only";
+    const ALLOCATION_MODE_ALLOCATE_OR_ACTIVATE = "allocate_or_activate";
+    const ALLOCATION_MODE_ACTIVATE = "activate_only";
+    const INVENTORY_MODE_STOCKPILE = "stockpile";
+    const INVENTORY_MODE_AD_HOC = "ad_hoc";
+
+
+    public static function tableName() {
+        return 'dealer_company';
+    }
+
+    public function rules() {
+        return [
+            [['region_id', 'business_registration_number', 'business_name', 'business_address', 'business_zip_code', 'business_phone', 'business_email','sp_inventory_order_mode'], 'required'],
+            [['business_address', 'notes','sp_inventory_order_mode','sp_inventory_allocation_mode', 'status'], 'string'],
+            [['created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['region_id'], 'string', 'max' => 8],
+            [['business_registration_number', 'business_phone'], 'string', 'max' => 64],
+            [['thumbnail_base_url', 'thumbnail_path'], 'string', 'max' => 1024],
+            [['business_name', 'business_city', 'business_state', 'business_country', 'business_contact_person'], 'string', 'max' => 255],
+            [['business_zip_code'], 'string', 'max' => 12],
+            [['business_email'], 'email'],
+        ];
+    }
+
+    public function attributeLabels() {
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'region_id' => Yii::t('common', 'Region ID'),
+            'business_registration_number' => Yii::t('common', 'Business Registration Number'),
+            'business_name' => Yii::t('common', 'Business Name'),
+            'business_address' => Yii::t('common', 'Business Address'),
+            'business_zip_code' => Yii::t('common', 'Business Zip Code'),
+            'business_city' => Yii::t('common', 'Business City'),
+            'business_state' => Yii::t('common', 'Business State'),
+            'business_country' => Yii::t('common', 'Business Country'),
+            'business_phone' => Yii::t('common', 'Business Phone'),
+            'business_email' => Yii::t('common', 'Business Email'),
+            'business_contact_person' => Yii::t('common', 'Business Contact Person'),
+            'sp_inventory_order_mode' => Yii::t('common', 'INVENTORY ORDER MODE'),
+            'sp_inventory_allocation_mode' => Yii::t('common', 'INVENTORY ALLOCATION MODE'),
+            'notes' => Yii::t('common', 'Notes'),
+            'plan_id' => Yii::t('common', 'Plans'),
+            'created_at' => Yii::t('common', 'Created At'),
+            'created_by' => Yii::t('common', 'Created By'),
+            'updated_at' => Yii::t('common', 'Updated At'),
+            'updated_by' => Yii::t('common', 'Updated By'),
+        ];
+    }
+
+    public function toObject() {
+        $m = $this;
+         //presign image url
+        $preSignImage = "";
+        if(isset($m->thumbnail_path)) {
+            $preSignImage = Utility::getPreSignedS3Url($m->thumbnail_path);
+        }
+        
+        $o = (object) [];
+        $o->id = $m->id;
+        $o->region_id = $m->region_id;
+        $o->business_registration_number = $m->business_registration_number;
+        $o->business_name = $m->business_name;
+        $o->business_address = $m->business_address;
+        $o->business_zip_code = $m->business_zip_code;
+        $o->business_phone = $m->business_phone;
+        $o->business_country = $m->business_country;
+        $o->business_email = $m->business_email;
+        $o->business_photo_presigned = $preSignImage;
+        $o->sp_inventory_order_mode = $m->sp_inventory_order_mode;
+        $o->sp_inventory_allocation_mode = $m->sp_inventory_allocation_mode;
+
+        //show dealercompany upline and downline
+        $cdc = DealerCompanyDealer::getUpline($m->id);
+        $o->dealer_upline_id = $cdc? $cdc->dealer_company_upline_id : null;
+        $l1 = DealerCompanyDealer::getDownlineArray($m->id);
+        $func = function($arr) { return  intval ($arr['dealer_company_downline_id']); };
+        $l2 = array_map($func, $l1);        
+        $o->dealer_downline_ids = $l2;
+
+        // $o->created_at = $m->created_at;
+
+        return $o;
+    }
+    public function getActivePlan() {
+        return $this->hasMany(InstapPlanDealerCompany::className(), ['dealer_company_id' => 'id'])->joinWith(['plan'])->andWhere(['instap_plan.status' => MyCustomActiveRecord::STATUS_ENABLED]);
+    }
+
+    public function getActivePlanByCategory($category) {
+        return $this->hasMany(InstapPlanDealerCompany::className(), ['dealer_company_id' => 'id'])->joinWith(['plan'])->andWhere(['instap_plan.status' => MyCustomActiveRecord::STATUS_ENABLED])->andWhere(['in', 'instap_plan.category', InstapPlan::getSubCategory($category)])->orderBy(['instap_plan.tier' => SORT_ASC]);
+    }
+
+    public function getInventory() {
+        return $this->hasMany(DealerOrderInventoryOverview::className(), ['dealer_company_id' => 'id'])->orderBy(['plan_id'=>SORT_ASC]);
+    }
+
+    // public function getPlan() {
+    //     return $this->hasOne(InstapPlan::className(), ['plan_id' => 'id']);
+    // }
+
+    // public function getInvPlan() {
+    //     return $this->hasOne(InstapPlan::className(), ['plan_id' => 'id'])->asArray();
+    // }
+
+    public function invInfo() {
+        $m = $this;
+        //presign image url
+        $preSignImage = "";
+        if(isset($m->thumbnail_path)) {
+            $preSignImage = Utility::getPreSignedS3Url($m->thumbnail_path);
+        }
+        $o = (object) [];
+        $o->company_id = $m->id;
+        $o->business_name = $m->business_name;
+        $o->thumbnail_presigned = $preSignImage;
+        $arr = [];
+
+        $plans = $m->activePlan;
+        foreach($plans as $p) {
+            $allocate = DealerOrderInventoryOverview::find()->andWhere(['dealer_company_id'=> $m->id])->andWhere(['plan_id' => $p->plan_id])->one();
+            if($allocate) {
+                array_push($arr, $allocate->toObject());
+            }else {
+                array_push($arr, DealerOrderInventoryOverview::showEmpty($p));
+            }
+        }
+        $o->inventory = $arr;
+
+        return $o;
+    }
+    //App
+    public function invInfoByCategory($category) {
+        $m = $this;
+        //presign image url
+        $preSignImage = "";
+        if(isset($m->thumbnail_path)) {
+            $preSignImage = Utility::getPreSignedS3Url($m->thumbnail_path);
+        }
+        $o = (object) [];
+        $o->company_id = $m->id;
+        $o->business_name = $m->business_name;
+        $o->thumbnail_presigned = $preSignImage;
+        $arr = [];
+
+        $plans = $m->getActivePlanByCategory($category)->all();
+
+        foreach($plans as $p) {
+            $allocate = DealerOrderInventoryOverview::find()->andWhere(['dealer_company_id'=> $m->id])->andWhere(['plan_id' => $p->plan_id])->one();
+            if($allocate) {
+                array_push($arr, $allocate->toObject());
+            }else {
+                array_push($arr, DealerOrderInventoryOverview::showEmpty($p));
+            }
+        }
+        $o->inventory = $arr;
+
+        return $o;
+    }
+
+    public function orderInventoryPlans($plans) {
+        $m = $this;
+        $o = (object) [];
+        $p = [];
+            foreach($plans as $plan) {
+                $inv = DealerOrderInventory::retrieveAvailableStock($plan,$m);
+                if($inv) {
+                    array_push($p, $inv->toObject());
+                }
+            }
+        $o->inventory = $p;
+
+        return $o;
+    }
+
+    public static function find()
+    {
+        return new \common\models\query\DealerCompanyQuery(get_called_class());
+    }
+
+
+    public static function allocationModeArray()
+    {
+        return [
+            self::ALLOCATION_MODE_ALLOCATE => Yii::t('common', 'allocate only'),
+            self::ALLOCATION_MODE_ALLOCATE_OR_ACTIVATE => Yii::t('common', 'allocate or activate'),
+            self::ALLOCATION_MODE_ACTIVATE => Yii::t('common', 'activate only'),
+            self::ALLOCATION_MODE_NONE => Yii::t('common', 'none'),
+        ];
+    }
+
+    public static function orderModeArray()
+    {
+        return [
+            self::INVENTORY_MODE_STOCKPILE => Yii::t('common', 'stockpile'),
+            self::INVENTORY_MODE_AD_HOC => Yii::t('common', 'ad hoc'),
+        ];
+    }
+
+   /* public static function listAllDealer(){
+        $all = ArrayHelper::map(SELF::find()->all(), 'id', 'business_name');
+        return $all;
+    }*/
+    public function checkDownline($upline_id, $downline_id){
+        $m = DealerCompanyDealer::find()->andWhere(['dealer_company_upline_id' => $upline_id])->andWhere(['dealer_company_downline_id' => $downline_id])->one();
+        if(!$m) {
+            return false;
+        }
+        return true;
+    }
+
+    public static function getDealerCompanyByUserId($user_id) {
+        $du = DealerUser::find()->Where(["user_id"=>$user_id])->one();
+        if ($du) {
+            return DealerCompany::find()->Where(['id'=>$du->dealer_company_id])->one();
+        }
+        return null;
+    }
+
+
+    public static function findTopmostCompany($company_id, $all_arr) {
+        $list = self::findUplinePath($company_id, $all_arr);
+        if ($list) {
+            if(is_object($list)) {
+                $list = (array)$list;
+            }
+            return $list[0]['dealer_company_upline_id'];
+        } else {
+            return $company_id;
+        }
+    }
+
+    public static function findUplinePath($company_id, $all_arr) {
+        $out = array();
+        foreach ($all_arr as $r){
+            if ($r['dealer_company_downline_id'] == $company_id){
+                $out = self::findUplinePath($r['dealer_company_upline_id'], $all_arr);
+                $out[]=$r;
+            }
+        }
+        return $out;
+    }
+
+    public static function getOrganisationCompanies($company_id) {
+        $all_company = DealerCompanyDealer::find()->asArray()->all();
+        $topmost_line = self::findTopmostCompany($company_id, $all_company);
+        $organisation_company_arr = array();
+        self::findChildren($organisation_company_arr, array($topmost_line), $all_company);
+
+        return $organisation_company_arr;   
+    }
+
+    public static function getLinearOrganisationCompanies($company_id) {
+        $all_company = DealerCompanyDealer::find()->asArray()->all();
+        $grandParent = self::findUplinePath($company_id, $all_company);
+        $grandChildren = self::grandChildren($all_company, $company_id);
+        $merge_company = array_merge($grandChildren, $grandParent);
+        $topmost_line = self::findTopmostCompany($company_id, $merge_company);
+        $organisation_company_arr = array();
+        self::findChildren($organisation_company_arr, array($topmost_line), $merge_company);
+        
+        return $organisation_company_arr;
+    }
+
+    public static function findChildren(&$holder_arr, $parent_arr, $all_arr) {
+
+        $child_arr = array();
+        foreach ($parent_arr as $p_id) {
+            if (!in_array($p_id, $holder_arr)) {
+                $holder_arr[] = $p_id; 
+            }
+            foreach ($all_arr as $r){
+                 if ($r['dealer_company_upline_id'] == $p_id) {
+                     $child = $r['dealer_company_downline_id'];
+                     $child_arr[] = $child;
+                 }
+            }
+            self::findChildren($holder_arr, $child_arr, $all_arr);  
+        }
+        return $child_arr;
+    }
+
+    public static function isSameOrganisation($company_id, $ids) {
+        // $data = DealerCompanyDealer::find()->asArray()->all();
+        $list = self::getOrganisationCompanies($company_id);
+        $match = count(array_intersect($ids, $list)) == count($ids);
+        if ($match) {
+            return true;
+        }
+        return false;
+        
+    }
+    //check is same linaer organisation not include sibling company
+    public static function isSameLinearOrganisation($company_id, $ids) {
+        // $data = DealerCompanyDealer::find()->asArray()->all();
+        $list = self::getLinearOrganisationCompanies($company_id);
+        $match = count(array_intersect($ids, $list)) == count($ids);
+        if ($match) {
+            return true;
+        }
+        return false;
+    }
+
+     //display all the branch from upline with upline and downline id
+    public static function listOrganization($src_arr, $currentid, $parentfound = false, $arr = array()) {
+        foreach($src_arr as $row) {
+            if((!$parentfound && $row['dealer_company_downline_id'] == $currentid) || $row['dealer_company_upline_id'] == $currentid)
+            {
+                $rowdata = array();
+                foreach($row as $k => $v)
+                    $rowdata[$k] = $v;
+                    $arr[] = $rowdata;
+                if($row['dealer_company_upline_id'] == $currentid)
+                    $arr = array_merge($arr, self::listOrganization($src_arr, $row['dealer_company_downline_id'], true));
+            }
+        }
+        return $arr;
+    }
+
+    //display tree view for child
+    public function buildTree($company_arr, $parent_id = 0) {
+
+        $branch = [];
+
+        foreach ($company_arr as $company) {
+            if ($company['dealer_company_upline_id'] == $parent_id) {
+                $children = self::buildTree($company_arr, $company['dealer_company_downline_id']);
+
+                $d = [];
+                $d['id'] = (int)$company['dealer_company_downline_id'];
+                $d['name'] = $company['downline_company_name'];
+                $d['children'] = $children;
+                
+                $branch[] = $d;
+                // unset($company);
+            }
+        }
+        return $branch;
+    }
+
+    public function grandChildren($company_arr, $parent_id = 0) {
+        $branch = [];
+        foreach ($company_arr as $company) {
+
+            if ($company['dealer_company_upline_id'] == $parent_id) {
+                $children = self::grandChildren($company_arr, $company['dealer_company_downline_id']);
+                array_push($branch, $company);
+                if($children) {
+                    foreach ($children as $child) {
+                        # code...
+                        array_push($branch, $child);
+                    }
+                }
+            }
+        }
+        return $branch;
+    }
+    //before reskin
+    public static function companyPlans($dealer_company_id, $region_id = SysRegion::SINGAPORE) {
+        $company_plan = InstapPlanDealerCompany::find()->select('plan_id')->where(['dealer_company_id' => $dealer_company_id])->asArray()->all();
+        if(!empty($company_plan)) {
+            $plan_id_arr = array_column($company_plan, 'plan_id');
+            $plans = InstapPlan::find()->where(['in', 'id', $plan_id_arr])->andWhere(['region_id'=>$region_id])->active()->all();
+
+        }else {
+            $plans = null;
+        }
+        return $plans;
+    }
+
+    public static function plansByCategory($dealer_company_id, $region_id = SysRegion::SINGAPORE, $category, $tier) {
+        $company_plan = InstapPlanDealerCompany::find()->select('plan_id')->where(['dealer_company_id' => $dealer_company_id])->asArray()->all();
+        if(!empty($company_plan)) {
+            $plan_id_arr = array_column($company_plan, 'plan_id');
+            $plans = InstapPlan::find()->where(['in', 'id', $plan_id_arr])->andWhere(['region_id'=>$region_id])->byCategory($category)->byTier($tier)->active()->orderBy(['tier' => SORT_ASC,'created_at' => SORT_ASC])->all(); 
+            // ;->createCommand()->getRawSql()
+            // print_r($plans->active()->all());exit();
+        }else {
+            $plans = null;
+        }
+        return $plans;
+    }
+
+    public static function mapCompanyNameToArray($company_relationship_arr) {
+        $func = function($arr) { 
+            $o = []; 
+            $o['dealer_company_upline_id'] = $arr['dealer_company_upline_id'];
+            $o['dealer_company_downline_id'] = $arr['dealer_company_downline_id'];
+            $o['downline_company_name'] = DealerCompany::find()->where(['id' => $arr['dealer_company_downline_id']])->one()->business_name;
+            return $o;
+         };
+
+        $array_company = array_map($func, $company_relationship_arr); 
+        // $array_company = json_decode(json_encode($arr_map), true); //chg stdObject to array
+
+        return $array_company;
+    }
+
+
+
+    //*********** html layout ***********
+    public function getCompanyDetailLayout() {
+        $model = $this;
+        $html = "<table class='table'><thead><tr>";
+        $html .= "<th width='20'>Region</th>";
+        $html .= "<th width='150'>Name</th>";
+        $html .= "<th width='120'>Phone</th>";
+        $html .= "<th width='180'>Email</th>";
+        $html .= "<th width='*'>Address</th>";
+        $html .= "<th width='100'>Inventory</th>";
+        $html .= "<th width='100'>Allocation</th>";
+        $html .= "<th width='100'>Created at</th>";
+        $html .= "<th width='100'>Organisation</th>";
+        
+
+        //$html .= "<th>Created At</th>";
+        $html .= "</tr></thead>";
+        $html .= "<tbody><tr>";
+        $html .= "<td>" . $model->region_id . "</td>";
+        $html .= "<td>" . $model->business_name . "<br><div class='small'>Reg # " . $model->business_registration_number . "</div></td>";
+        $html .= "<td>" . $model->business_phone . "</td>";
+        $html .= "<td>" . $model->business_email . "</td>";
+        $html .= "<td>" . $model->business_address . "</td>";
+        $html .= "<td>" . $model->sp_inventory_order_mode . "</td>";
+        $html .= "<td>" . self::allocationModeArray()[$model->sp_inventory_allocation_mode] . "</td>";
+        $html .= "<td>" . Yii::$app->formatter->asDatetime($model->created_at) . "</td>";
+        $link = Url::to(["dealer-company/chart", 'id'=>$model->id]);
+        $html .= "<td><a href='".$link."'><i class='fa fa-sitemap'></i></a></td>";
+        
+
+        $html .= "</tr></tbody></table>";
+
+        return $html;
+    }
+    public function getContactLayout() {
+        $dealer = $this;
+        $html = "";
+        $html .= '<span class="fa fa-university"></span>&nbsp;&nbsp;'.$dealer->business_name."<br>";
+        $html .= '<span class="fa fa-envelope"></span>&nbsp;&nbsp;'.$dealer->business_email."<br>";
+        $html .= '<span class="fa fa-phone"></span>&nbsp;&nbsp;'.$dealer->business_phone."<br>";
+        $html .= '<span class="fa fa-map-marker"></span>&nbsp;&nbsp;'.$dealer->business_address;
+
+        return $html;
+    }
+    public function getContactSmallLayout($link="") {
+        $dealer = $this;        
+        $html = '<span class="fa fa-university"></span>&nbsp'.$dealer->business_name;
+        if ($link) {
+            $html = "<a href='".$link."'>".$html."</a>";
+        }
+        return $html;
+    }
+
+    public function getInventoryLayout() {
+        $invs = $this->inventory;
+        // return print_r($invs->attributes);exit();
+
+        $html = "";
+        if(!empty($invs)) {
+            $html .= '<div class="row container">';
+            foreach($invs as $inv) {
+                $plan = $inv->getPlan()->asArray()->one();
+                $html .= '<a href="'.Url::to(['inventory-detail', 'id'=>$inv->id]).'">';
+                $html .= '<div class="column col-lg-4 col-sm-6 inventory-container"><table class="tg"><tbody>';
+                $html .= '<tr>';
+                    $html .= '<td class="tg-header" rowspan="4"><span class="text-bold">'. $plan['name'] . '</span><br>'. $plan['sku'] .'</div></td>';
+                    $html .= '<td class=""><span class="text-success text-bold">Available stock</span></td>';
+                    $html .= '<td class=""><div class="inventory-number"><span class="text-success text-bold">' . $inv->quota . '</span></div></td>';
+                $html .= '</tr>';
+                $html .= '<tr>';
+                    $html .= '<td class="">Downline</td>';
+                    $html .= '<td class=""><div class="inventory-number">' . DealerOrderInventoryOverview::countDownlineAllocatedStock($inv->dealer_company_id, $inv->plan_id) . '</div></td>';
+                $html .= '</tr>';
+                $html .= '<tr>';
+                    $html .= '<td class="">Activated (for sale)</td>';
+                    $html .= '<td class=""><div class="inventory-number">' . DealerOrderInventoryOverview::getActivatedStock($inv->plan_id, $inv->dealer_company_id) . '</div></td>';
+                $html .= '</tr>';
+                $html .= '<tr class="text-bold">';
+                    $html .= '<td class="">Overall</td>';
+                    $html .= '<td class=""><div class="inventory-number">' . $inv->overall . '</div></td>';
+                $html .= '</tr>';
+                $html .= "</tbody></table></div></a>";
+            }     
+            $html .= '</div>';
+        } else {
+            $html .= "<i>No plans allocated in this company </i>";
+        }
+
+        return $html;
+    }
+
+
+}

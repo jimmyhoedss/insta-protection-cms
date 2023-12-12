@@ -1,0 +1,183 @@
+<?php
+
+namespace common\models;
+
+use Yii;
+use common\components\MyCustomActiveRecord;
+use common\models\InstapPlanPool;
+use common\models\UserCaseAction;
+use common\models\QcdRepairCentre;
+
+class UserCase extends MyCustomActiveRecord
+{
+    const CASE_STATUS_CLAIM_PENDING = "claim_pending";
+    const CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION = "claim_require_clarification";
+    const CASE_STATUS_CLAIM_PROCESSING = 'claim_processing'; 
+    const CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS = "claim_repair_in_progress";
+    const CASE_STATUS_CLAIM_REPAIR_COMPLETED = "claim_repair_completed";
+    const CASE_STATUS_CLAIM_CLOSED = "claim_closed";
+    const CASE_STATUS_CLAIM_CANCELLED = "claim_cancelled";
+    const CASE_STATUS_CLAIM_REJECTED = "claim_rejected";    
+    
+    //const CASE_STATUS_SERVICE_PROVIDER_REGISTERED = "service_provider_registered";
+    //const CASE_STATUS_SERVICE_PROVIDER_PENDING_REPAIR = "service_provider_pending_repair";
+    //const CASE_STATUS_SERVICE_PROVIDER_DISCHARGED = "service_provider_discharged";
+    
+    const TYPE_CLAIM_SP = "claim_sp";
+
+    public static function tableName()
+    {
+        return 'user_case';
+    }
+    public function rules()
+    {
+        return [
+            [['plan_pool_id', 'user_id', 'current_case_status'], 'required'],
+            [['id', 'plan_pool_id', 'user_id', 'created_at', 'created_by', 'updated_at', 'updated_by', 'occurred_at'], 'integer'],
+            [['cost_repair'], 'number'],
+            ['cost_repair', 'required', 'when' => function($model, $attributes) {
+                if($model->current_case_status === self::CASE_STATUS_CLAIM_CLOSED){
+                    return true;
+                }
+            }],
+            [['case_type', 'current_case_status', 'notes', 'status', 'description', 'location', 'contact_alt'], 'string'],
+            [['notes', 'description', 'contact_alt'], 'filter', 'filter' => '\yii\helpers\HtmlPurifier::process'],
+            ['current_case_status', 'in', 'range' => array_keys(self::allCaseStatus())]
+        ];
+    }
+    public function attributeLabels()
+    {
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'plan_pool_id' => Yii::t('common', 'Plan Pool ID'),
+            'user_id' => Yii::t('common', 'User ID'),
+            'contact_alt' => Yii::t('common', 'Contact Alternate'),
+            'case_type' => Yii::t('common', 'Case Type'),
+            'cost_repair' => Yii::t('common', 'Cost repair'),
+            'description' => Yii::t('common', 'Description'),
+            'current_case_status' => Yii::t('common', 'Current Case Status'),
+            'notes' => Yii::t('common', 'Notes'),
+            'status' => Yii::t('common', 'Status'),
+            'created_at' => Yii::t('common', 'Created At'),
+            'created_by' => Yii::t('common', 'Created By'),
+            'updated_at' => Yii::t('common', 'Updated At'),
+            'updated_by' => Yii::t('common', 'Updated By'),
+        ];
+    }
+    public static function allCaseStatus()
+    {
+        return [
+            self::CASE_STATUS_CLAIM_PENDING => Yii::t('common','Claim Pending'),
+            self::CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION => Yii::t('common','Require Clarification'),
+            self::CASE_STATUS_CLAIM_PROCESSING => Yii::t('common','Claim Processing'),
+            self::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS => Yii::t('common','Repair In Progress'),
+            self::CASE_STATUS_CLAIM_REPAIR_COMPLETED => Yii::t('common','Repair Completed'),
+            self::CASE_STATUS_CLAIM_CLOSED => Yii::t('common','Closed'),
+            self::CASE_STATUS_CLAIM_CANCELLED => Yii::t('common','Cancelled'),
+            self::CASE_STATUS_CLAIM_REJECTED => Yii::t('common','Rejected'),
+        ];
+    }
+
+    //action will update to the corresponding case status
+    public static function mapActionToStatus() {
+        return [
+            UserCaseAction::ACTION_CLAIM_SUBMIT => self::CASE_STATUS_CLAIM_PENDING,
+            UserCaseAction::ACTION_CLAIM_UPLOAD_PHOTO => self::CASE_STATUS_CLAIM_PENDING,
+            UserCaseAction::ACTION_CLAIM_REQUIRE_CLARIFICATION => self::CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION,
+            UserCaseAction::ACTION_CLAIM_REGISTRATION_RESUBMIT => self::CASE_STATUS_CLAIM_PENDING,
+            UserCaseAction::ACTION_CLAIM_PROCESSING => self::CASE_STATUS_CLAIM_PROCESSING,
+            UserCaseAction::ACTION_CLAIM_REPAIR_IN_PROGRESS => self::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS,
+            UserCaseAction::ACTION_CLAIM_REPAIR_COMPLETED => self::CASE_STATUS_CLAIM_REPAIR_COMPLETED,
+            UserCaseAction::ACTION_CLAIM_CLOSED => self::CASE_STATUS_CLAIM_CLOSED,
+            UserCaseAction::ACTION_CLAIM_CANCELLED => self::CASE_STATUS_CLAIM_CANCELLED,
+            UserCaseAction::ACTION_CLAIM_REJECTED => self::CASE_STATUS_CLAIM_REJECTED,
+        ];
+
+    }
+
+    //case action will update to the corresponding plan status
+    public static function mapCaseActionToPlanStatus() {
+        return [
+            UserCaseAction::ACTION_CLAIM_SUBMIT => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_UPLOAD_PHOTO => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_REQUIRE_CLARIFICATION => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_REGISTRATION_RESUBMIT => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_PROCESSING => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_REPAIR_IN_PROGRESS => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_REPAIR_COMPLETED => InstapPlanPool::STATUS_PENDING_CLAIM,
+            UserCaseAction::ACTION_CLAIM_CLOSED => InstapPlanPool::STATUS_COMPLETE_CLAIM,
+            UserCaseAction::ACTION_CLAIM_CANCELLED => InstapPlanPool::STATUS_ACTIVE,
+            UserCaseAction::ACTION_CLAIM_REJECTED => InstapPlanPool::STATUS_ACTIVE,
+        ];
+
+    }
+
+    public function getPlanPool() {
+        return $this->hasOne(InstapPlanPool::class, ['id' => 'plan_pool_id']);
+    }
+
+    public function getCaseAction() {
+        return $this->hasMany(UserCaseAction::class, ['case_id' => 'id']);
+    }
+
+    public function getCaseRepairCentre() {
+        return $this->hasOne(UserCaseRepairCentre::class, ['case_id' => 'id']);
+    }
+    
+    public function getUserProfile() {
+        return $this->hasOne(UserProfile::className(), ['user_id' => 'user_id']);
+    }
+
+    public static function statusNotReject() {
+        return [
+            self::CASE_STATUS_CLAIM_PENDING,
+            self::CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION,
+            self::CASE_STATUS_CLAIM_PROCESSING,
+            self::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS,
+            self::CASE_STATUS_CLAIM_REPAIR_COMPLETED,
+            self::CASE_STATUS_CLAIM_CLOSED
+        ];
+    }
+
+    public static function statusApproved() {
+        return [
+            self::CASE_STATUS_CLAIM_PROCESSING,
+            self::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS,
+            self::CASE_STATUS_CLAIM_REPAIR_COMPLETED,
+            self::CASE_STATUS_CLAIM_CLOSED
+        ];
+    }
+
+    public static function hasCase($planPool) {
+        // $m = SELF::find()->where(["plan_pool_id" => $planPool->id])->andWhere(['not', ['current_case_status' => SELF::CASE_STATUS_EXTERNAL_SYSTEM_ERROR]])->one(); 
+        // TODO::if CASE_STATUS_EXTERNAL_SYSTEM_ERROR, need to allow user to try and submit again?
+        // $m = SELF::find()->andWhere(["plan_pool_id" => $planPool->id])->one();
+        $m = SELF::find()->where(['in', 'current_case_status', self::statusNotReject()])->andWhere(["plan_pool_id" => $planPool->id])->orderBy(['created_at'=>SORT_DESC])->limit(1)->one();
+        return $m;
+    }
+
+    public static function makeModel($p, $current_case_status, $device_issue, $location, $occurred_at, $contact_alt) {       
+        $m = new SELF();
+        $m->plan_pool_id = $p->id;
+        $m->user_id = $p->user_id;
+        $m->description = $device_issue;
+        $m->contact_alt = $contact_alt;
+        $m->current_case_status = $current_case_status;
+        $m->case_type = SELF::TYPE_CLAIM_SP;
+        $m->location = $location;
+        $m->occurred_at = $occurred_at;
+        return $m;
+    }
+
+    public static function countTotalPendingApproval() {
+        return self::find()->joinWith('planPool', true)->andWhere(['instap_plan_pool.region_id' => Yii::$app->session->get('region_id'), 'user_case.current_case_status' => self::CASE_STATUS_CLAIM_PENDING])->count();
+    }
+
+    public static function formUpClaimNumber($userCase) {
+        //form up policy number
+        return str_pad((string)$userCase->id, 6, "0", STR_PAD_LEFT);
+    }
+
+
+
+}

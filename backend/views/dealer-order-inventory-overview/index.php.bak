@@ -1,0 +1,85 @@
+<?php
+
+use yii\helpers\Html;
+use yii\helpers\Url;
+use yii\grid\GridView;
+use common\models\DealerCompany;
+use common\models\InstapPlan;
+use common\models\DealerOrderInventoryOverview;
+
+/* @var $this yii\web\View */
+/* @var $searchModel common\models\search\DealerOrderInventoryOverviewSearch */
+/* @var $dataProvider yii\data\ActiveDataProvider */
+
+$this->title = Yii::t('backend', 'Inventories');
+$this->params['breadcrumbs'][] = $this->title;
+?>
+<div class="dealer-order-inventory-overview-index">
+
+    <p>
+        <?= Html::a(Yii::t('backend', 'Allocate Stocks'), ['allocate'], ['class' => 'btn btn-success']) ?>
+        <?= Html::a(Yii::t('backend', 'Revert Stocks'), ['revert'], ['class' => 'btn btn-danger']) ?>
+    </p>
+
+    <?= GridView::widget([
+        'dataProvider' => $dataProvider,
+        // 'filterModel' => $searchModel,
+        'columns' => [
+            [
+                'class' => 'yii\grid\SerialColumn',
+                'headerOptions' => ['width' => '20px'],
+            ],
+            [
+                'label'=> Yii::t('backend','Company'),
+                'format' => 'raw',
+                'attribute' => 'company_name',
+                'value' => function ($model) {
+                    // $dealer = DealerCompany::find()->andWhere(["id"=>$model->dealer_company_id])->one();
+                    $dealer = $model;
+                    $link = Url::to(['dealer-company/view', 'id'=>$dealer->id]);
+                    $html= $dealer->getContactSmallLayout($link);
+                    return $html;
+                },
+                'headerOptions' => ['width' => '250px'],
+            ],
+            [
+                'label'=> Yii::t('backend','Inventory'),
+                'format' => 'raw',
+                'value' => function ($model) {
+                    return $model->getInventoryLayout();
+                    // $invs = DealerOrderInventoryOverview::find()->select(['quota', 'overall', 'plan_id'])->where(['dealer_company_id' => $model->dealer_company_id])->all();
+                    // $invs = $model->companyInventories;
+                    // // return print_r($invs->attributes);exit();
+
+                    // $html = "";
+                    // foreach($invs as $inv) {
+                    //     $html .= "<div><span class='inventory-plan'>". $inv->plan->name . "</span>";
+                    //     $html .= "<span class='inventory-sku'>" . $inv->plan->sku ." :</span>";
+                    //     $html .= "<span class='role'>" . $inv->quota ."/" . $inv->overall . "</span></div>";
+                    // }     
+                    // return $html;
+                },
+                'contentOptions' => ['class' => 'text-left'],
+                'headerOptions' => ['width' => '*', ],
+            ],
+            [
+                'class' => 'yii\grid\ActionColumn',
+                'template' => '{view}',
+                'headerOptions' => ['width' => '20'],
+                'buttons' => [
+                    'view' => function ($url, $model) {
+                        $html = "";
+                        if($model->inventory){
+                            $link =  Url::to(['dealer-order-inventory-overview/view', 'id'=> $model->id]);
+                            $html .= Html::a('<span class="fa fa-list-ol""></span>', $link, ['title' => Yii::t('backend','Allocate Inventory')]);
+                        }
+                        return $html;
+                    },
+                    
+                ],
+            ],
+        ],
+    ]); ?>
+   
+
+</div>

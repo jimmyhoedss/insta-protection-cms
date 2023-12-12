@@ -1,0 +1,117 @@
+var _IP = _IP || {};
+var _Utils = _Utils || {};
+var menu_index = 0;
+_IP.Data = {};
+
+
+_IP.Dashboard = (function(){
+	function init(){
+		
+		var ctx = document.getElementById('myChart');
+		var myChart = new Chart(ctx, {
+			type: 'line',
+			data: {
+	          	labels  : ['January','February','March','April','May','June','July','August','September','October','November','December'],
+			    datasets: [{
+			        label: '# of Plans Sold in 2020',
+			        data: _data2,
+			        backgroundColor: [
+			            // 'rgba(30,144,255, 0.2)',
+			            'rgba(50,205,50, 0.2)',
+			        ],
+			        borderColor: [
+			            'rgba(30,144,255, 0.2)'
+			            
+			        ],
+			        borderWidth: 5,
+			        fill: false,
+			        // hidden: true
+			    },
+			    {
+			        label: '# of Plans Sold in 2021',
+			        data: _data,
+			        backgroundColor: [
+			            'rgba(255, 99, 132, 0.2)',
+			           
+			        ],
+			        borderColor: [
+			            'rgba(255, 99, 132, 1)',
+			            
+			        ],
+			        borderWidth: 5,
+			        fill: false
+			    }]
+			},
+			options: {
+				maintainAspectRatio: false,
+			    scales: {
+			        yAxes: [{
+			            ticks: {
+			                beginAtZero: true
+			            }
+			        }]
+			    },
+		     	layout: {
+		            padding: {
+		                left: 20,
+		                right: 30,
+		                top: 10,
+		                bottom: 10
+		            }
+		        },
+		        legend: {
+		            display: true,
+		            position: 'bottom',
+		            labels: {
+		                fontColor: 'rgb(255, 99, 132)',
+		                fontSize: 20,
+		            	padding: 20,
+		            }
+		        },
+		        title: {
+		            display: true,
+	                fontSize: 20,
+		            text: 'Total Sales Of The Year'
+		        }
+			}          
+		});
+
+		// update chat ref: https://www.chartjs.org/docs/latest/developers/updates.html
+		function removeData(chart) {
+		    chart.data.labels.pop();
+		    chart.data.datasets.forEach((dataset) => {
+		        dataset.data.pop();
+		    });
+		    // chart.data.datasets.hidden=true;
+			 chart.getDatasetMeta(1).hidden=true;
+
+		    	chart.update();
+
+			//Show
+			// 
+		}
+
+		//display or hide graph
+		var d = false
+		$("#delete").on("click",function() {
+			// alert("1235432");
+			d = !d;
+			console.log(d);
+		 	myChart.getDatasetMeta(1).hidden=d;
+			myChart.update();
+			// removeData(myChart)
+		})
+	}
+	return {
+		init: init
+	}
+})();
+
+
+$(function () { 
+    var scope = $(document).find('body > div.wrapper > div.content-wrapper > section.content > div');
+    if(scope.hasClass("dashboard-index")) {
+    	 _IP.Dashboard.init();
+       
+    } 
+});

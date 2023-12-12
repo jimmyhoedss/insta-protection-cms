@@ -1,0 +1,38 @@
+<?php
+
+namespace common\models\fcm;
+
+use Yii;
+use yii\web\ServerErrorHttpException;
+use common\jobs\FcmQueueJob;
+use common\models\InstapPlanPool;
+use common\models\User;
+use common\models\InstapPlan;
+use common\models\DealerCompany;
+use common\models\fcm\SysFcmMessage;
+use common\models\fcm\PushNotification;
+
+class FcmAllocateStock extends \yii\base\Model
+{
+    public $notification;
+
+    public function __construct($dealer_user, $plan_id, $amount, $company_upline){
+        $this->notification = new PushNotification();
+        $this->notification->customSetAttributes(PushNotification::TYPE_INBOX, ["title"=>Yii::t("common","New Stock Received!"), "summary"=>$this->getSummary($company_upline, $plan_id, $amount), "body"=>Yii::t("common","Your upline company has allocated stock to your company")]);
+        $this->notification->setRecipient(PushNotification::RECIPIENT_TYPE_DEVICE , $dealer_user->user_id);
+    }
+
+    public function send(){
+        if($this->notification->saveInbox()){
+            $this->notification->send();
+        } else {
+            Yii::warning($this->notification->getMessage(), 'api');
+        }
+    }
+
+    private function getSummary($company_upline, $plan_id, $amount){
+        $plan = InstapPlan::find()->andWhere(['id'=>$plan_id])->one();
+        $company_upline = DealerCompany::find()->andWhere(["id" => $company_upline])->one();
+        return $company_upline->business_name . " has allocate ". $amount . " of " . $plan->name. " to your company";
+    }
+}

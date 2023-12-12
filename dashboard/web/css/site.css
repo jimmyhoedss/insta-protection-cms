@@ -1,0 +1,76 @@
+.heart-holder {}
+.heart-holder .heart { display:inline-block; width:12px; height:12px; }
+.heart-holder .txt { display:inline-block; font-size:0.8em; margin-left:10px; }
+
+
+.avatar {
+  display: inline-block;
+  position: relative;
+  margin: 0 5px 0 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #fcfcfc;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  vertical-align: inherit;
+  border: 1px solid #ccc;
+}
+
+.avatarbig {
+  display: inline-block;
+  position: relative;
+  margin: 0 5px 0 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #fcfcfc;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  vertical-align: inherit;
+  border: 1px solid #ccc;
+}
+
+
+.photo{
+  width: 100%;
+  max-width: 400px;
+}
+
+.photo.medium {
+  width: 200px;
+}
+
+.photo.small {
+  width: 100px;
+}
+
+.photo.x-small {
+  width: 40px;
+}
+
+.photo.plan {
+  width: 100px;
+  /*height: 80px;*/
+}
+
+.history_content {
+  padding: 0 18px;
+  display: none;
+  overflow: hidden;
+  /*background-color: #f1f1f1;*/
+}
+
+.user-panel {
+  height:80px;
+}
+
+.user-panel .mobile {
+  margin:0 0 5px 0;
+  padding:0;
+  left:10px;
+  font-weight:bold;
+  color:white;
+}

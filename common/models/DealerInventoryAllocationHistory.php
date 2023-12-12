@@ -1,0 +1,112 @@
+<?php
+
+namespace common\models;
+
+use Yii;
+use common\components\MyCustomActiveRecord;
+use common\models\DealerCompany;
+use common\models\InstapPlan;
+use common\models\DealerOrderInventoryOverview;
+/**
+ * This is the model class for table "dealer_inventory_assignment_history".
+ *
+ * @property int $id
+ * @property int $dealer_company_upline_id
+ * @property string $action
+ * @property int $plan_id
+ * @property int $amount
+ * @property int $dealer_company_downline_id
+ * @property int|null $created_at
+ * @property int|null $created_by
+ * @property int|null $updated_at
+ * @property int|null $updated_by
+ */
+class DealerInventoryAllocationHistory extends MyCustomActiveRecord
+{
+    /**
+     * {@inheritdoc}
+     */
+    const ACTION_ALLOCATE = "allocate";
+    const ACTION_ACTIVATE = "activate";
+    const ACTION_REVERT_ALLOCATE = "revert_allocate";
+    const ACTION_REVERT_ACTIVATE = "revert_activate";
+
+    public static function tableName()
+    {
+        return 'dealer_inventory_allocation_history';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function rules()
+    {
+        return [
+            [['from_company_id', 'action', 'plan_id', 'amount', 'to_company_id'], 'required'],
+            [['from_company_id', 'plan_id', 'amount', 'to_company_id', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['action'], 'string', 'max' => 256],
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'from_company_id' => Yii::t('common', 'Dealer Company Upline ID'),
+            'action' => Yii::t('common', 'Action'),
+            'plan_id' => Yii::t('common', 'Plan ID'),
+            'amount' => Yii::t('common', 'Amount'),
+            'to_company_id' => Yii::t('common', 'Dealer Company Downline ID'),
+            'created_at' => Yii::t('common', 'Created At'),
+            'created_by' => Yii::t('common', 'Created By'),
+            'updated_at' => Yii::t('common', 'Updated At'),
+            'updated_by' => Yii::t('common', 'Updated By'),
+        ];
+    }
+
+    public static function makeModel($upline_id, $downline_id, $amount, $plan_id, $action) {
+        $m = new SELF();
+        $m->from_company_id = $upline_id;
+        $m->action = $action;
+        $m->plan_id = $plan_id;
+        $m->amount = $amount;
+        $m->to_company_id = $downline_id;
+        return $m;
+    }
+
+    public function getUplineCompany() {
+        return $this->hasOne(DealerCompany::class, ['id' => 'from_company_id']);
+    }
+    public function getDownlineCompany() {
+        return $this->hasOne(DealerCompany::class, ['id' => 'to_company_id']);
+    }
+
+    public function getPlan() {
+        return $this->hasOne(InstapPlan::class, ['id' => 'plan_id']);
+    }
+
+    public static function mapModeToAction() {
+        return [
+            DealerOrderInventoryOverview::REVERT_IP_ALLOCATE => self::ACTION_REVERT_ALLOCATE,
+            DealerOrderInventoryOverview::REVERT_DEALER_ALLOCATE => self::ACTION_REVERT_ALLOCATE,
+            DealerOrderInventoryOverview::REVERT_DEALER_ACTIVATE => self::ACTION_REVERT_ACTIVATE
+        ];
+    }
+
+    public function toObject() {
+        $m = $this;
+        $o = (object) [];
+        // $o->dealer_company_id = $m->dealer_company_id;
+        $o->from_company = $m->uplineCompany->business_name;
+        $o->action = $m->action;
+        $o->plan = $m->plan->name;
+        $o->sku = $m->plan->sku;
+        $o->amount = $m->amount;
+        $o->to_company = $m->downlineCompany->business_name;
+        $o->created_at = $m->created_at;
+        return $o;
+    }
+}

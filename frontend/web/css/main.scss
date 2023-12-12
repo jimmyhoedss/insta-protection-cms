@@ -1,0 +1,357 @@
+@import 'var.scss';
+
+html {
+	height: 100%;
+}
+
+
+body {
+	font-family: $font-stack;
+	color: $primary-font-color;
+	width: 100%;
+	height: 100%;
+	background-color: #fff;
+	//background-color: #fafafa;
+	
+}
+h1, h2, h3 {
+	font-family: $font-stack-title;
+	color: $primary-title-color;
+}
+
+.logo-ip {
+	display: inline-block;
+	width: 40px;
+	height: 40px;
+	margin: 15px;
+	background: url(#{$asset-path}/logo-ip-square.png) center center no-repeat;
+	background-size: contain;
+}
+
+.main-navbar {
+	position: fixed;
+	width: 100%;
+	z-index: 2100;
+	
+	background-color: rgba(0,0,0,0.5);
+	height: 65px;
+
+	.navbar-container {
+		margin: 0 auto;
+		font-weight: bold;
+		.logo-holder {
+			h1 { margin: 15px 20px 0 20px; }
+			display: inline-block;
+			vertical-align:top;
+			.logo-ip {
+				background: url(#{$asset-path}/logo-ip-square.png) center center no-repeat;
+				background-size: contain;
+			}
+		}
+
+		ul {
+			vertical-align: top;
+			display: inline-block;
+			padding: 0;
+			margin: 0;
+		    list-style-type: none;
+		    color: #fff;
+
+			.nav-item {
+				vertical-align:inherit;
+				//padding: 10px;
+				//display: table-cell;
+				display: inline-block;
+				margin: 25px 30px;
+				height: 30px;
+			}
+
+			
+			a { color: #fff; position: relative; }
+			//a:hover { color: $primary-theme-color;}
+			a.selected:after, a:hover:after {
+			    content: "";
+			    border-bottom: 3px solid $primary-theme-color;
+			    position: absolute;
+			    left: 0;
+			    right: 0;
+			    bottom: -5px;
+			}
+			/**/
+			
+		}
+		ul.menu-link-holder {
+
+		}
+		
+		ul.menu-right-holder {
+			a:hover { color:$primary-theme-color; }
+			a.login-link:hover { color:$primary-theme-color !important; }
+			a.login-link {
+				margin-right: 10px;
+				@media screen and (max-width: $break-small) {
+					margin-right: 0;
+				}
+			}
+			.compact-menu { display:inline-block; color:#fff; cursor:pointer; font-size:1.5em; position: relative; top:-5px; margin: 21px 15px 0 0;
+				i {
+					//vertical-align:inherit;
+				}
+				&:hover { color:$primary-theme-color; }
+			}
+			
+		}
+
+		@media screen and (min-width: $break-small) {
+				width: auto;
+		}
+		@media screen and (min-width: $break-x-large) {
+			width: $break-x-large;
+		}
+	}
+
+}
+
+.main-navbar-fixed, .main-navbar-relative {
+	background-color: #fff;
+	border-bottom: 1px solid #ddd;
+
+	.navbar-container {
+		.logo-holder .logo-c2c {
+			background: url(#{$asset-path}/logo-c2c.png) center center no-repeat;
+			background-size: contain;
+		}
+		ul {
+			color: $primary-font-color;
+			a, .compact-menu { color: $primary-font-color !important; }
+		}
+
+	}
+}
+
+.main-navbar-relative {
+	position: relative;
+}
+
+.main-navbar-fixed {
+	position: fixed;
+}
+
+.main-navbar-spacer {
+	height: 100px;
+}
+
+.menu-right-holder {
+	vertical-align: inherit;
+    a { text-decoration:none; }
+	a:hover  { color: $primary-theme-color;}
+	a.selected:after, a:hover:after {
+	    content: "";
+	    border: none !important;
+	}
+	.login-panel {
+		vertical-align: inherit;
+
+		//.avatar {}
+		//.username {}
+
+		
+		.login-menu {
+			display: none;
+			right: 25px;
+		    position: relative;
+		    top: 9px;
+			ul.dropdown-menu {
+				border-radius: 0;
+				border-top: 0;
+				.login-link { }
+			    a { 
+			    	color: $primary-font-color; position: relative; 
+			    	height: 35px;
+			    	padding: 8px 10px
+			    }
+				a:hover { color: $primary-theme-color;}
+				a.selected:after, a:hover:after {
+				    content: "";
+				    border: none;
+				}
+				.divider {
+					margin: 0;
+				}
+			}
+		}
+	}
+		
+}
+
+		
+
+
+
+#fullscreen-nav {
+	display: none;
+	position: fixed;
+    z-index: 9000; /* Sit on top */
+    padding-top: 80px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Enable scroll if needed */
+    background-color: #fff; /* Fallback color */
+    background-color: rgba(255,255,255,0.95); /* Black w/ opacity */
+    text-align: center;
+    .logo {
+    	margin: 0 auto;
+    	width: 200px;
+		height: 80px;
+    }
+    .menu {
+    	margin: 40px 0 20px 0;
+    	font-size: 1.5em;
+    }
+    .menu-2 {
+    	margin: 40px 0 10px 0;
+    	font-size: 1.5em;
+    }
+    ul {
+    	list-style: none;
+    	text-align: center;
+    	padding: 0;
+    	margin: 40px 0 0 0;
+    	li:before{
+    		content: " ";
+    		display: block;
+    		height: 1px;
+    		width: 70%;
+    		margin: 10px auto;
+    		background-color: #ededed;
+    	}
+    	li {
+    		//margin: 20px;
+    		a {
+	    		font-size: 1.3em;
+	    		font-weight: bold;
+	    		color: $primary-font-color;
+	    		&:hover {
+	    			color: $primary-theme-color;
+	    		}
+    		}
+    	}
+    }
+    .account-menu-list{
+        margin: -10px 0 0 0;
+    }
+	.close {
+	    position: absolute;
+	    top: 15px;
+	    right: 25px;
+	    color: #f1f1f1;
+	    font-size: 40px;
+	    font-weight: bold;
+	    //transition: 0.3s;
+	    opacity:1;
+	    text-shadow: none;
+	    color: $primary-font-color;
+	}
+
+	.close:hover,
+	.close:focus {
+	    color: $primary-theme-color;;
+	    text-decoration: none;
+	    cursor: pointer;
+	    opacity:1;
+	}
+
+		.fullscreen-menu-avatar {
+			top: -6px;
+			margin: 0 15px 0 0;
+		}
+		.fullscreen-menu-username {
+			display: inline-block;
+			vertical-align: top;
+		}
+
+}
+
+.wrap {
+	min-height: 100%;
+	height: auto;
+	margin: 0 auto -221px;
+    padding: 0 0 259px;
+
+    @media only screen and (max-width: $break-small) {
+		margin: 0 auto -221px;
+	    padding: 0 0 279px;
+    }
+}
+
+.sub-wrapper {
+	padding: 0;
+	height: 100%;
+	margin: 0 auto;
+
+}
+
+
+
+hr {
+	width: 90%;
+	//margin-left: -5%;
+}
+
+
+.hr-small {
+	width: 90%;
+	max-width: 500px;
+}
+
+
+.footer-section {
+	display: block;
+	height: 220px;
+	border-top: 1px solid #eceeef;
+	background-color: #f7f7f7;	
+
+	.links {
+		position:relative;
+		height: 160px;
+		.align-bottom {
+			position:absolute;	
+			bottom: 20px;
+			.row {
+				margin:2px 0;
+				.icon { display:inline-block; width:20px; margin:0; vertical-align:top; }
+				.text { display:inline-block; margin:0px; }
+			}
+		}
+
+	}
+
+
+	.footer {
+		display: block;
+		height: 60px;
+	    background-color: $primary-theme-color;
+	    border-top: 1px solid #ddd;
+	    padding-top: 20px;
+	    color: #fff;
+
+	    .copyright { display: inline-block; }
+
+	}
+
+	@media only screen and (max-width: $break-small) {
+		.links { 
+			height: 200px;
+			.row {
+				margin:6px !important;
+				.text { width: 300px }
+			}
+		}
+		.footer { height: 80px; }
+    }
+
+
+}
+

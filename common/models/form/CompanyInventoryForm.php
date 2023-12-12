@@ -1,0 +1,203 @@
+<?php
+namespace common\models\form;
+
+use common\models\User;
+use yii\base\InvalidParamException;
+use yii\base\Model;
+use Yii;
+use yii\web\JsExpression;
+use common\components\MyCustomBadRequestException;
+use common\models\DealerCompany;
+use common\models\DealerUser;
+use common\models\DealerOrder;
+use common\models\DealerOrderAdHoc;
+use common\models\DealerUserHistory;
+use common\models\DealerCompanyDealer;
+use common\models\DealerOrderInventory;
+use common\models\DealerOrderInventoryOverview;
+use common\models\DealerInventoryAllocationHistory;
+use common\models\InstapPlanDealerCompany;
+
+use common\models\fcm\FcmStockRequest;
+use common\models\fcm\FcmAllocateStock;
+use api\components\CustomHttpException;
+use common\components\Utility;
+
+
+
+/**
+ * Password reset form
+ */
+class CompanyInventoryForm extends Model
+{
+    public $plan_id;
+    public $amount;
+    public $downline_id;
+
+    const SCENARIO_API_ALLOCATE = "scenario_api_allocate";
+    const REQUEST_OR_ACTIVATE_STOCK = "request_or_activate_stock";
+    
+
+    public function rules()
+    {
+        return [
+            [['amount', 'plan_id'], 'required', 'on' => self::REQUEST_OR_ACTIVATE_STOCK],
+            [['downline_id', 'amount', 'plan_id'], 'required', 'on' => self::SCENARIO_API_ALLOCATE],
+            [['plan_id','amount', 'downline_id'], 'integer'],
+            ['amount', 'compare', 'compareValue' => 0, 'operator' => '!=', 'type' => 'number',  'message' => Yii::t('common','Amount cannot be 0.')]//amount cannot equal to 0
+        ];
+    }
+    
+ 
+    public function attributeLabels()
+    {
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'amount' => Yii::t('common', 'Amount'),
+            'plan_id' => Yii::t('common', 'Plan ID'),
+        ];
+    }
+
+    public function sendStockRequest() {
+        $upline = "";
+        $user = Yii::$app->user;
+        $company_downline = DealerUser::getDealerFromUserId($user);
+            $upline = DealerCompanyDealer::find()->where(['dealer_company_downline_id' => $company_downline->id])->one();
+       
+        if(!$upline) {
+            $this->addError('dealer_company_upline_id', Yii::t('common', "Company upline does not exist."));
+            return null;
+        }
+        //search for all manager in upline
+        $dm = DealerUser::find()->andWhere(['dealer_company_id' => $upline->dealer_company_upline_id])->join('LEFT JOIN','rbac_auth_assignment','rbac_auth_assignment.user_id = dealer_user.user_id')->andFilterWhere(['rbac_auth_assignment.item_name' => User::ROLE_DEALER_MANAGER])->all();
+
+        if(!$dm) {
+            $this->addError('dealer_company_upline_id', Yii::t('common', "Unable to find dealer manager from upline company."));
+            return null;
+        }
+        for ($i=0; $i < count($dm) ; $i++) {
+                $fcm = new FcmStockRequest($dm[$i], $this->plan_id, $this->amount, $company_downline);
+                $fcm->send();
+        }
+
+        return true;
+       
+    }
+
+    public function allocateStock() {     
+
+        $success = false;
+        $user = Yii::$app->user;
+        $upline_company = DealerUser::getDealerFromUserId($user);
+        $company_upline_id = $upline_company->id;
+        //check is downline
+        $checkIsDl = $upline_company->checkDownline($company_upline_id, $this->downline_id);
+        //sent fcm to noticy after allocate
+        if(!$checkIsDl) {
+            $str= Utility::jsonifyError("downline_id", Yii::t("common","Not downline"), CustomHttpException::KEY_INVALID_CREDENTIALS);
+            throw new CustomHttpException($str, CustomHttpException::FORBIDDEN);
+        }
+
+        try{
+
+            $company_stock = DealerOrderInventoryOverview::find()->andWhere(['dealer_company_id' => $company_upline_id])->andWhere(['plan_id' => $this->plan_id])->one();
+            $transaction = Yii::$app->db->beginTransaction();
+            //check quota availability and exist of inventory
+            if($company_stock) {
+                $quota = $company_stock->quota - $this->amount;
+                if($quota < 0) {
+                    $this->addError('quota', Yii::t('common', "Out of quota."));
+                    return null;
+                }
+
+            }else {
+                $this->addError('dealer_company_id', Yii::t('common', "Stock not available in company."));
+                return null;
+            }
+
+            $inventory = DealerOrderInventoryOverview::makeModel($this->downline_id, $this->amount, $this->plan_id);
+            $history = DealerInventoryAllocationHistory::makeModel($company_upline_id, $this->downline_id, $this->amount, $this->plan_id, DealerInventoryAllocationHistory::ACTION_ALLOCATE);
+
+            if($inventory->save() && $history->save()) {
+                //minus amount
+                $available = $company_stock->quota - $this->amount ;
+                $company_stock->quota =  $available;
+                if($company_stock->save()) {
+                    $success = true;
+                }
+            }
+
+        } catch (yii\db\IntegrityException $e) {
+             Yii::error($e->getMessage(), 'CompanyInventoryForm');
+                
+            } 
+
+        if($success) {
+            $transaction->commit();
+            $dm = DealerUser::getAllDealerManager($this->downline_id);
+            for ($i=0; $i < count($dm) ; $i++) {
+                $fcm = new FcmAllocateStock($dm[$i], $this->plan_id, $this->amount, $company_upline_id);
+                $fcm->send();
+            }
+            
+        }else {
+                $transaction->rollback();
+                $company_stock = null;
+                $this->addError('dealer_company_id', Yii::t('common', "Unable to allocate."));
+            }
+
+        return $company_stock;     
+
+    }
+
+    public function activateStock() {
+
+        $success = false;
+        $user = Yii::$app->user;
+        $dealer_company = DealerUser::getDealerFromUserId($user);
+        $dealer_company_id = $dealer_company->id;
+        try{
+
+            $company_stock = DealerOrderInventoryOverview::find()->andWhere(['dealer_company_id' => $dealer_company_id])->andWhere(['plan_id' => $this->plan_id])->one();
+            $transaction = Yii::$app->db->beginTransaction();
+            //check quota availability and exist of inventory
+            if($company_stock) {
+                $quota = $company_stock->quota - $this->amount;
+                if($quota < 0) {
+                    $this->addError('quota', Yii::t('common', "Not enough quota to activate."));
+                    return null;
+                }
+            }else {
+                $this->addError('plan_id', Yii::t('common', "Inventory not found."));
+                return null;
+            }
+            $history = DealerInventoryAllocationHistory::makeModel($dealer_company_id, $dealer_company_id, $this->amount, $this->plan_id, DealerInventoryAllocationHistory::ACTION_ACTIVATE);
+            //deduct activated stock
+            $available = $company_stock->quota - $this->amount ;
+            $company_stock->quota = $available;
+
+            if($history->save() && $company_stock->save()) {
+                //activate the amount of stock in dealer_order_inventory tbl
+                DealerOrderInventory::insertAll($dealer_company_id, $this->plan_id, $this->amount);
+                $success = true;
+            }
+
+        } catch (yii\db\IntegrityException $e) {
+             Yii::error($e->getMessage(), 'CompanyInventoryForm');
+        } 
+
+        if($success) {
+            $transaction->commit();
+            
+        } else {
+                $transaction->rollback();
+                $company_stock = null;
+                $this->addError('plan_id', Yii::t('common', "Unable activate plan."));
+            }
+
+        return $company_stock; 
+
+    }
+
+
+}

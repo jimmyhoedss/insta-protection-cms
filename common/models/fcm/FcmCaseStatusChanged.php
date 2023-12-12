@@ -1,0 +1,71 @@
+<?php
+
+namespace common\models\fcm;
+
+use Yii;
+use yii\web\ServerErrorHttpException;
+use common\jobs\FcmQueueJob;
+use common\models\UserCase;
+use common\models\User;
+use common\models\fcm\SysFcmMessage;
+use common\models\fcm\PushNotification;
+use common\models\SysRegion;
+
+
+class FcmCaseStatusChanged extends \yii\base\Model
+{
+    public $notification;
+    //oh: Static variables can be assigned values which are the, result of constant expressions, but dynamic expressions, such as function calls, will cause a parse error.
+  /*  const BODY = Array(
+        UserCase::CASE_STATUS_CLAIM_PENDING => Yii::t("common", "Claim is pending"),
+        UserCase::CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION => Yii::t("common", "Claim requires more details"),
+        UserCase::CASE_STATUS_CLAIM_PROCESSING => Yii::t("common", "Claim is processing"),
+        UserCase::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS => Yii::t("common", "Repair in progress"),
+        UserCase::CASE_STATUS_CLAIM_REPAIR_COMPLETED => Yii::t("common", "Repair is completed"),
+        UserCase::CASE_STATUS_CLAIM_CLOSED => Yii::t("common", "Claim is closed"),
+        UserCase::CASE_STATUS_CLAIM_CANCELLED => Yii::t("common", "Claim cancelled"),
+        UserCase::CASE_STATUS_CLAIM_REJECTED => Yii::t("common", "Claim has been rejected. Please try submit another claim) with a more detailed incident report."),
+    );*/
+
+
+    public function __construct($case){
+        Yii::$app->language = SysRegion::mapCountryToNativeLanguage($case->planPool->region_id);
+        $this->notification = new PushNotification();
+        $this->notification->customSetAttributes(PushNotification::TYPE_INBOX, ["title"=>SELF::title()[$case->current_case_status], "summary"=>SELF::summary()[$case->current_case_status], "body"=>SELF::summary()[$case->current_case_status]."\n".$case->planPool->policy_number]);
+        $this->notification->setRecipient(PushNotification::RECIPIENT_TYPE_DEVICE , $case->user_id);
+    }
+
+    public function send() {
+        if($this->notification->saveInbox()){
+            $this->notification->send();
+        } else {
+            Yii::warning("FcmCaseStatusChanged: " . $this->notification->getMessage());
+        }
+    }
+
+    public static function title() {
+        return [
+            UserCase::CASE_STATUS_CLAIM_PENDING => Yii::t("common","Claim status - Pending"),
+            UserCase::CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION => Yii::t("common", "Claim status - Require Clarification"),
+            UserCase::CASE_STATUS_CLAIM_PROCESSING => Yii::t("common", "Claim status - Processing"),
+            UserCase::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS => Yii::t("common", "Claim status - Repair In Progress"),
+            UserCase::CASE_STATUS_CLAIM_REPAIR_COMPLETED => Yii::t("common", "Claim status - Repair Completed"),
+            UserCase::CASE_STATUS_CLAIM_CLOSED => Yii::t("common", "Claim status - Closed"),
+            UserCase::CASE_STATUS_CLAIM_CANCELLED => Yii::t("common", "Claim status - Cancelled"),
+            UserCase::CASE_STATUS_CLAIM_REJECTED => Yii::t("common", "Claim status - Rejected"),
+        ];
+    }
+
+    public static function summary() {
+        return [
+            UserCase::CASE_STATUS_CLAIM_PENDING => Yii::t("common", "Claim is pending"),
+            UserCase::CASE_STATUS_CLAIM_REQUIRE_CLARIFICATION => Yii::t("common", "Claim requires more details"),
+            UserCase::CASE_STATUS_CLAIM_PROCESSING => Yii::t("common", "Claim is processing"),
+            UserCase::CASE_STATUS_CLAIM_REPAIR_IN_PROGRESS => Yii::t("common", "Repair in progress"),
+            UserCase::CASE_STATUS_CLAIM_REPAIR_COMPLETED => Yii::t("common", "Repair is completed"),
+            UserCase::CASE_STATUS_CLAIM_CLOSED => Yii::t("common", "Claim is closed"),
+            UserCase::CASE_STATUS_CLAIM_CANCELLED => Yii::t("common", "Claim cancelled"),
+            UserCase::CASE_STATUS_CLAIM_REJECTED => Yii::t("common", "Claim rejected"),
+        ];
+    }
+}

@@ -1,0 +1,229 @@
+<?php
+    namespace common\components;
+
+    use Yii;
+    use common\components\Settings;
+    use GeoIp2\Database\Reader;
+    use GeoIp2\Exception\AddressNotFoundException;
+    use Aws\S3\S3Client;
+    use Aws\Credentials\Credentials;
+    use Aws\Credentials\CredentialProvider;
+
+    class Utility {
+
+        public static function enclose_quotes_str($arr) {
+          return implode(',', array_map(array(__CLASS__, 'add_quotes'), $arr));
+        }
+        public static function add_quotes($str) {
+          return sprintf("'%s'", $str);
+        }
+
+        public static function add($num1, $num2) {
+          return $num1 + $num2;
+        }
+
+        public static function id_hash() {
+          return bin2hex(random_bytes(16));
+        }
+        
+        public static function randomToken($length = 32) {
+          return bin2hex(random_bytes($length));
+        }
+
+        public static function guid() {
+          //GUID v4
+          $data = random_bytes(16);
+          assert(strlen($data) == 16);
+
+          $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // set version to 0100
+          $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // set bits 6-7 to 10
+
+          return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+        }
+
+        public static function getJsParseDate($date) {
+          return JsExpressionHelper::parse($this->date);
+        }
+
+        public static function replacePath($str) {
+          return str_replace('\\', '/', $str);
+        }
+
+        public static function unique_code() {
+          $s = bin2hex(random_bytes(16));
+          $code = substr($s, 0, 12);
+          return strtoupper($code);
+        }
+
+        //https://odan.github.io/2017/08/10/aes-256-encryption-and-decryption-in-php-and-csharp.html
+        //Encryption function
+        public static function encrypt($plaintext) {
+          //$plaintext = 'My secret message 1234';
+          $password = Settings::ENCRYPT_KEY;
+          $method = 'aes-256-cbc';
+          $key = substr(hash('sha256', $password, true), 0, 32);
+          $iv = chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0);
+          $encrypted = base64_encode(openssl_encrypt($plaintext, $method, $key, OPENSSL_RAW_DATA, $iv));
+          return $encrypted;
+        }
+
+        //Decryption function
+        public static function decrypt($encrypted) {
+          $password = Settings::ENCRYPT_KEY;
+          $method = 'aes-256-cbc';
+          $key = substr(hash('sha256', $password, true), 0, 32);
+          $iv = chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0) . chr(0x0);
+          $plaintext = openssl_decrypt(base64_decode($encrypted), $method, $key, OPENSSL_RAW_DATA, $iv);
+          return $plaintext;
+        }
+
+        public static function humanTiming($time) {
+            $time = ($time<1)? 1 : $time;
+            $tokens = array (
+                31536000 => 'year',
+                2592000 => 'month',
+                604800 => 'week',
+                86400 => 'day',
+                3600 => 'hour',
+                60 => 'minute',
+                1 => 'second'
+            );
+
+            foreach ($tokens as $unit => $text) {
+                if ($time < $unit) continue;
+                $numberOfUnits = floor($time / $unit);
+                return $numberOfUnits.' '.$text.(($numberOfUnits>1)?'s':'');
+            }
+        }
+
+        public static function jsonifyError($field = "", $message = "", $message_key = "") {
+          $result = [
+              'field' => $field,
+              'message' => $message,
+              'message_key' => $message_key
+          ];
+
+          $e = json_encode([$result]);
+          $e = preg_replace("/\n/", "", $e);
+          return $e;        
+        }
+
+        public static function getGeoIp($ip) {
+          try {
+              $reader = new Reader('./../data/GeoLite2-Country.mmdb');
+              $record = $reader->country($ip);
+              $name = $record->country->names['en'];
+              $iso = $record->country->isoCode;
+              $o = (object) array("country_name"=>$name, "country_iso_code"=>$iso);
+              return $o;
+          } catch (AddressNotFoundException $e) {
+              return null;
+          }
+        }
+
+        public static function getClientIp() {
+          $ipaddress = '';
+          if (getenv('HTTP_CLIENT_IP'))
+              $ipaddress = getenv('HTTP_CLIENT_IP');
+          else if(getenv('HTTP_X_FORWARDED_FOR'))
+              $ipaddress = getenv('HTTP_X_FORWARDED_FOR');
+          else if(getenv('HTTP_X_FORWARDED'))
+              $ipaddress = getenv('HTTP_X_FORWARDED');
+          else if(getenv('HTTP_FORWARDED_FOR'))
+              $ipaddress = getenv('HTTP_FORWARDED_FOR');
+          else if(getenv('HTTP_FORWARDED'))
+             $ipaddress = getenv('HTTP_FORWARDED');
+          else if(getenv('REMOTE_ADDR'))
+              $ipaddress = getenv('REMOTE_ADDR');
+          else
+              $ipaddress = 'UNKNOWN';
+          return $ipaddress;
+        }
+
+        public static function getPreSignedS3Url($path) {
+
+          // return Yii::$app->myS3Client;
+          return Yii::$app->myS3Client->getPreSignedS3Url($path);
+          // if (empty($path)) {
+          //   return null;
+          // }
+
+          // $bucket = env("AWS_S3_BUCKET", "prod.storage.instaprotection");
+          // $region = env("AWS_S3_REGION", "ap-southeast-1");
+          // $credentials = new Credentials(env('AWS_KEY'), env('AWS_SECRET')); //use this because aws-sdk updated to vers 3 
+
+          // $s3Client = new S3Client([
+          //     'region' => $region,
+          //     'version' => 'latest',
+          //     'credentials' => $credentials,
+          // ]);
+
+          // $cmd = $s3Client->getCommand('GetObject', [
+          //     'Bucket' => $bucket,
+          //     'Key'    => $path,
+          // ]);
+
+
+          // $request = $s3Client->createPresignedRequest($cmd, '+10 minutes');
+          // $signedUrl = (string) $request->getUri();
+
+          // return $signedUrl;
+          
+        }
+
+        public static function preSignedS3UrlDocDownload($path, $filename, $file_extension) {
+          $f = $filename.$file_extension;
+          $s3Client = new S3Client([
+            'version'     => '2006-03-01',
+            'region'      => env('AWS_S3_REGION'), 
+            'credentials' => array(
+                'key' => env('AWS_KEY'),
+                'secret'  => env('AWS_SECRET'),
+            )
+          ]);
+
+          $cmd = $s3Client->getCommand('GetObject', [
+              'Bucket' => env("AWS_S3_BUCKET"),
+              'Key'    => $path,
+              'ResponseContentDisposition' => 'attachment;'.'filename='.$f,
+          ]);
+
+          $request = $s3Client->createPresignedRequest($cmd, '+10 minutes');
+          $signedUrl = (string) $request->getUri();
+          return $signedUrl;
+        }
+
+        public static function replacePathAccordingToOS($filepath = "") {
+          if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+              $filepath = str_replace('\\', '/', $filepath);
+              // echo 'This is a server using Windows!';
+          } /*else {
+            $filepath
+              // echo 'This is a server not using Windows!';
+          }*/
+          return $filepath;
+        }
+
+        public static function dayInMonth($month) {
+          $list=array();
+          // $month = date("m");
+          $month = $month;
+          $year = date('y');
+
+          for($d=1; $d<=31; $d++)
+          {
+              $time=mktime(12, 0, 0, $month, $d, $year);   
+              if (date('m', $time)==$month)       
+                  $list[]=date('Y-m-d', $time);
+                  // $list[]=strtotime(date('Y-m-d', $time));
+          }
+          return $list;
+        }
+
+
+
+
+
+      }
+    
+?>

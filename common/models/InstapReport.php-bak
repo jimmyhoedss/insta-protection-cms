@@ -1,0 +1,806 @@
+<?php
+
+namespace common\models;
+
+use Yii;
+use common\models\User;
+use common\models\InstapPlanPool;
+use common\models\InstapPlan;
+use common\models\DealerOrder;
+use common\models\DealerCompany;
+use common\models\DealerCompanyDealer;
+use common\models\DealerInventoryAllocationHistory;
+use common\models\UserPlanAction;
+use common\components\Utility;
+use common\components\MyCustomActiveRecord;
+use yii2tech\csvgrid\SerialColumn;
+use yii\helpers\ArrayHelper;
+
+class InstapReport extends MyCustomActiveRecord
+{
+    public $dateRange;
+    public $today;
+    private $soh_remaining_dealer_id = [];
+
+    const TYPE_DECLARATION_REPORT = 'declaration_report';
+    const TYPE_DISTRIBUTOR_ACTIVATION_REPORT = 'distributor_activation_report';
+    const TYPE_AM_TRANSACTION_REPORT = 'am_transaction_report';
+    const TYPE_RETAIL_TRANSACTION_REPORT = 'retail_transaction_report';
+    const TYPE_SOH_REPORT = 'soh_report';
+    const TYPE_CLAIM_SUBMISSION_REPORT = 'claim_submission_report';
+
+    public static function tableName()
+    {
+        return 'instap_report';
+    }
+
+    public function init(){
+        // setting env variables
+        // date_default_timezone_set("Asia/Singapore");
+        $this->today = date("His d M Y", strtotime('now'));
+        // $this->region_id = Yii::$app->session->get('region_id'); // SysRegion::MALAYSIA or SysRegion::SINGAPORE
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function rules(){
+        return [
+            [['type', 'date_start', 'date_end', 'dateRange'], 'required'],
+            [['type', 'report_status', 'status', 'dateRange'], 'string'],
+            [['created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['document_base_url', 'document_path'], 'string', 'max' => 1024],
+            [['region_id', 'file_type'], 'string', 'max' => 8],
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels(){
+        return [
+            'id' => Yii::t('common', 'ID'),
+            'type' => Yii::t('common', 'Report Type'),
+            'document_base_url' => Yii::t('common', 'Document Base Url'),
+            'document_path' => Yii::t('common', 'Document Path'),
+            'file_type' => Yii::t('common', 'File Type'),
+            'date_start' => Yii::t('common', 'Date Start'),
+            'date_end' => Yii::t('common', 'Date End'),
+            'report_status' => Yii::t('common', 'Report Status'),
+            'region_id' => Yii::t('common', 'Region ID'),
+            'status' => Yii::t('common', 'Status'),
+            'created_at' => Yii::t('common', 'Created At'),
+            'created_by' => Yii::t('common', 'Created By'),
+            'updated_at' => Yii::t('common', 'Updated At'),
+            'updated_by' => Yii::t('common', 'Updated By'),
+        ];
+    }
+
+    public static function reportTypes(){
+        return [
+            self::TYPE_DECLARATION_REPORT => Yii::t('common', 'Declaration'),
+            self::TYPE_DISTRIBUTOR_ACTIVATION_REPORT => Yii::t('common', 'Distributor Activation Report'),
+            self::TYPE_AM_TRANSACTION_REPORT => Yii::t('common', 'Account Manager Transaction Report'),
+            self::TYPE_RETAIL_TRANSACTION_REPORT => Yii::t('common', 'Retail Transaction Report'),
+            self::TYPE_SOH_REPORT => Yii::t('common', 'Stock On Hand Report'),
+            self::TYPE_CLAIM_SUBMISSION_REPORT => Yii::t('common', 'Claim Submission Report'),
+        ];
+    }
+
+    public function getUser() {
+        return $this->hasOne(User::className(), ['id' => 'created_by']);
+    }
+
+    public static function find()
+    {
+        return new \common\models\query\InstapReportQuery(get_called_class());
+    }
+
+    public function currencyCode() {
+        return [
+            SysRegion::THAILAND => "THB",
+            SysRegion::VIETNAM => "VND",
+            SysRegion::MALAYSIA => "MYR",
+            SysRegion::INDONESIA => "IDR",
+            SysRegion::SINGAPORE => "SGD",
+        ];
+    }
+
+    public static function getDeclarationColumn() {
+        $code = SELF::currencyCode()[Yii::$app->session->get('region_id')];
+        return[
+                    [
+                        'label'=>'S/N',
+                        'format' => 'raw',
+                        'value' => function($model) {      
+                            return $model->policy_number;
+                        },                 
+                    ],
+                    [
+                        'label'=>'Physical Device SRP Price ('.$code.')',
+                        'format' => 'raw',
+                        'value' => function($model) {      
+                            return $model->userPlan->details->sp_device_purchase_price;
+                        },                 
+                    ],
+                    [
+                        'label'=>'Service Plan Purchase Date',
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return Yii::$app->formatter->asDate($model->created_at);
+                        },                 
+                    ],
+                    [
+                        'label'=>'ADP Service Plan Start Date',
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return Yii::$app->formatter->asDate($model->coverage_start_at);
+                        },                 
+                    ],
+                    [
+                        'label'=>'ADP Service Plan Expiry Date',
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return Yii::$app->formatter->asDate($model->coverage_end_at);
+                        },                 
+                    ],
+                    [
+                        'label'=>'Customer Reg No.',
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return $model->user_id;
+                        },                 
+                    ],
+                    [
+                        'label'=>'Policy Number', //master policy number
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return $model->plan->master_policy_number;
+                        },                 
+                    ],
+                    [
+                        'label'=>'Premium Amount', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return number_format($model->plan->premium_price, 2);
+                        },                 
+                    ],
+                    [
+                        'label'=>'Customer Name', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return $model->userProfile->first_name . " " . $model->userProfile->last_name;
+                        },                 
+                    ],
+                    [
+                        'label'=>'Contact No', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return $model->user->mobile_number_full;
+                        },                 
+                    ],
+                    [
+                        'label'=>'Physical Device IMEI No.', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return isset($model->userPlan->details->sp_imei) ? $model->userPlan->details->sp_imei : "";
+                        },                 
+                    ],
+                    [
+                        'label'=>'Physical Device Serial No.', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return isset($model->userPlan->details->sp_serial) ? $model->userPlan->details->sp_serial : "";
+                        },                 
+                    ],
+                    [
+                        'label'=>'Physical Device Brand', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return isset($model->userPlan->details->sp_brand) ? $model->userPlan->details->sp_brand : "";
+                        },                 
+                    ],
+                    [
+                        'label'=>'Physical Device Model No.', 
+                        'format' => 'raw',
+                        'value' => function($model) {  
+                            return isset($model->userPlan->details->sp_model_number) ? $model->userPlan->details->sp_model_number : "";
+                        },                 
+                    ],
+                    // ['class' => 'yii\grid\ActionColumn'],
+            ];
+    }
+
+    public static function getDistributorActivationColumn() {
+        return[
+                [
+                    'label'=>'Company Region',
+                    'format' => 'raw',
+                    'value' => function($model) {      
+                        return $model->dealer->region_id;
+                    },                 
+                ],
+                [
+                    'label'=>'Company Order Type',
+                    'format' => 'raw',
+                    'value' => function($model) {      
+                        return $model->dealer->sp_inventory_order_mode;
+                    },                 
+                ],
+                [
+                    'label'=>'Company Order Mode',
+                    'format' => 'raw',
+                    'value' => function($model) {      
+                        return $model->dealer->sp_inventory_allocation_mode;
+                    },                 
+                ],
+                [
+                    'label'=>'Distributor Company',
+                    'format' => 'raw',
+                    'value' => function($model) { 
+                        $allCompanyRelationArr = DealerCompanyDealer::find()->asArray()->all();
+                        if($model->dealer->sp_inventory_order_mode == DealerCompany::INVENTORY_MODE_STOCKPILE) {
+                            $topMostCompanyId = DealerCompany::findTopmostCompany($model->dealer_company_id, $allCompanyRelationArr);
+                        } else {
+                            $topMostCompanyId = $model->dealer_company_id;
+                        }
+                        $company = DealerCompany::find()->andWhere(['id' => $topMostCompanyId])->one();     
+                        return $company->business_name;
+                    },                 
+                ],
+                [
+                    'label'=>'Retail Co.ID',
+                    'format' => 'raw',
+                    'value' => function($model) {      
+                        return $model->dealer->id;
+                    },                 
+                ],
+                [
+                    'label'=>'Retail Company',
+                    'format' => 'raw',
+                    'value' => function($model) {      
+                        return $model->dealer->business_name;
+                    },                 
+                ],
+                [
+                    'label'=>'Retails Assistance Name',
+                    'format' => 'raw',
+                    'value' => function($model) { 
+                        $fullname =  $model->userProfile->first_name. " " .  $model->userProfile->last_name;
+                        return $fullname;
+                    },                 
+                ],
+                [
+                    'label'=>'Retails Assistance ID',
+                    'format' => 'raw',
+                    'value' => function($model) { 
+                        return $model->dealer_user_id;
+                    },                 
+                ],
+                [
+                    'label'=>'Quality',
+                    'format' => 'raw',
+                    'value' => function($model) { 
+                        //reeturn 1 because policy number is unique
+                        return "1";
+                    },                 
+                ],
+                [
+                    'label'=>'Retail Price', //RRP
+                    'format' => 'raw',
+                    'value' => function($model) {  
+                        return $model->price;
+                    },                 
+                ],
+                [
+                    'label'=>'Policy Name',
+                    'format' => 'raw',
+                    'value' => function($model) {  
+                        return $model->planPool->plan->name;
+                    },                 
+                ],
+                // [
+                //     'label'=>'Policy Number', //policy number of user
+                //     'format' => 'raw',
+                //     'value' => function($model) {  
+                //         return $model->planPool->plan->master_policy_number;
+                //     },                 
+                // ],
+                [
+                    'label'=>'Policy Number', //policy number of user
+                    'format' => 'raw',
+                    'value' => function($model) {  
+                        return $model->planPool->policy_number;
+                    },                 
+                ],
+                // [
+                //     'label'=>'Date Of Policy Activated ', //plan activated at
+                //     'format' => 'raw',
+                //     'value' => function($model) {  
+                //         $d = UserPlanAction::find()->andWhere(['action_status' => UserPlanAction::ACTION_APPROVE, 'plan_pool_id' => $model->plan_pool_id])->orderBy(['created_at' => SORT_DESC])->one()->created_at;
+                //         return Yii::$app->formatter->asDate($d);
+                //     },                 
+                // ],
+                [
+                    'label'=>'Date Of Policy Sold', 
+                    'format' => 'raw',
+                    'value' => function($model) {  
+                        return " ".Yii::$app->formatter->asDatetime($model->created_at);
+                    },                 
+                ],
+                [
+                    'label'=>'Policy Status', //policy number of user
+                    'format' => 'raw',
+                    'value' => function($model) {  
+                        return $model->planPool->plan_status;
+                    },                 
+                ],
+                // ['class' => 'yii\grid\ActionColumn'],
+        ];
+    }
+
+    public static function getPlanPoolIdByReportType($report_type, $start_date, $end_date) {
+        $plan_pool_id_arr = "";
+        switch($report_type) {
+                case self::TYPE_DECLARATION_REPORT:  
+                    $approved_plan = UserPlanAction::find()->select(['plan_pool_id'])->andWhere(['action_status' => UserPlanAction::ACTION_APPROVE])->andWhere(['between', 'created_at', $start_date, $end_date])->orderBy(['created_at' => SORT_DESC])->distinct()->all();
+                    $plan_pool_id_arr = array_column($approved_plan, 'plan_pool_id');
+                break;
+
+                case self::TYPE_DISTRIBUTOR_ACTIVATION_REPORT:
+                    $activatedOrder =  DealerOrder::find()->joinWith('planPool', true)->joinWith('userPlanAction', true)->andWhere(['in', 'user_plan_action.action_status', [UserPlanAction::ACTION_APPROVE, UserPlanAction::ACTION_CANCEL, UserPlanAction::ACTION_REJECT]])->andWhere(['instap_plan_pool.region_id' => Yii::$app->session->get('region_id')])->andWhere(['between', 'user_plan_action.created_at', $start_date, $end_date])->orderBy(['user_plan_action.created_at' => SORT_DESC])->distinct()->all();
+                    $plan_pool_id_arr = array_column($activatedOrder, 'plan_pool_id');
+                break;
+            }
+
+        return $plan_pool_id_arr;
+    }
+
+    public function generateAmTransactionReport(){
+        // Generating AM Transaction Report
+        // $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/accounts_manager"));
+        // $folder_name = 'report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/accounts_manager";
+
+        $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/'.$this->today." ".$this->region_id."/am"));
+        // $folder_name = 'report/'.$this->today." ".$this->region_id."/am";
+
+        if (!file_exists($folder_name)) {
+            mkdir($folder_name, 0777, true);
+        }
+        $distributors = DealerInventoryAllocationHistory::find()
+        ->select(['from_company_id', 'to_company_id'])
+        ->leftJoin('dealer_company AS company_from', 'dealer_inventory_allocation_history.from_company_id = company_from.id')
+        ->leftJoin('dealer_company AS company_to', 'dealer_inventory_allocation_history.to_company_id = company_to.id')
+        ->andWhere(['>=', 'dealer_inventory_allocation_history.created_at', $this->date_start])
+        ->andWhere(['<=', 'dealer_inventory_allocation_history.created_at', $this->date_end])
+        ->andWhere(['company_from.region_id'=>$this->region_id])
+        ->andWhere(['company_to.region_id'=>$this->region_id])
+        ->groupBy('to_company_id')
+        ->asArray()
+        ->all();
+
+        $retailers = DealerInventoryAllocationHistory::find()
+        ->select(['from_company_id', 'to_company_id'])
+        ->leftJoin('dealer_company AS company_from', 'dealer_inventory_allocation_history.from_company_id = company_from.id')
+        ->leftJoin('dealer_company AS company_to', 'dealer_inventory_allocation_history.to_company_id = company_to.id')
+        ->andWhere(['>=', 'dealer_inventory_allocation_history.created_at', $this->date_start])
+        ->andWhere(['<=', 'dealer_inventory_allocation_history.created_at', $this->date_end])
+        ->andWhere(['company_from.region_id'=>$this->region_id])
+        ->andWhere(['company_to.region_id'=>$this->region_id])
+        ->groupBy('from_company_id')
+        ->asArray()
+        ->all();
+        // ->createCommand()->getRawSql();
+        // print_r($retailers); exit();
+
+        if(count($distributors)>0){
+            foreach ($distributors as $distributor) {
+                $this->queryAmTransactionReport($distributor['from_company_id'], $distributor['to_company_id'], $folder_name);
+            }
+        }
+        if(count($retailers)>0){
+            foreach ($retailers as $retailer) {
+                $this->queryAmTransactionReport($retailer['from_company_id'], $retailer['to_company_id'], $folder_name);
+            }
+        }
+        foreach ($this->getMasterDistributorIDs() as $distributor_id) {
+            $this->queryAmTransactionReport($this->getInstaprotectionID(), $distributor_id, $folder_name);
+        }
+        return $folder_name;
+        // --------------------------------------------------------------------------------
+    }
+
+    public function generateRetailerTransactionReport(){
+        // Generating Retail Transaction Report
+        // $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/retail_transaction_report"));
+        // $folder_name = 'report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/retail_transaction_report";
+
+
+        $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/'.$this->today." ".$this->region_id."/rtr"));
+        // $folder_name = 'report/'.$this->today." ".$this->region_id."/rtr";
+
+        if (!file_exists($folder_name)) {
+            mkdir($folder_name, 0777, true);
+        }
+        $orders = DealerOrder::find()->select(['dealer_company_id'])->joinWith('dealer')->andWhere(['>=', 'dealer_order.created_at', $this->date_start])->andWhere(['<=', 'dealer_order.created_at', $this->date_end])->andWhere(['dealer_company.region_id'=>$this->region_id])->groupBy('dealer_company_id')->asArray()->all();
+        // ->createCommand()->getRawSql();
+        // print_r($orders); exit();
+
+        if ($orders) {
+            $orders = ArrayHelper::getColumn($orders, 'dealer_company_id');
+        }
+        foreach ($orders as $order) {
+            $this->queryRetailerTransactionReport($order, $folder_name);
+        }
+        return $folder_name;
+        // --------------------------------------------------------------------------------
+    }
+
+    public function generateSohReport(){
+        // Generating SOH Report
+        $dealer_companies_id = DealerCompany::find()->select(['id'])->where(['region_id'=>$this->region_id])->active()->asArray()->all();
+        $this->soh_remaining_dealer_id = ArrayHelper::getColumn($dealer_companies_id, "id");
+
+        // $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/stock_on_hand"));
+        // $folder_name = 'report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/stock_on_hand";
+
+        $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/'.$this->today." ".$this->region_id."/soh"));
+        // $folder_name = 'report/'.$this->today." ".$this->region_id."/soh";
+
+        if (!file_exists($folder_name)) {
+            mkdir($folder_name, 0777, true);
+        }
+        foreach ($this->getMasterDistributorIDs() as $distributor_id) {
+            $current_dealer_company_id = $distributor_id;
+            $downline_companies = DealerCompanyDealer::getDownlineArray($current_dealer_company_id);
+            $downline_company_ids_arr = ArrayHelper::getColumn($downline_companies, 'dealer_company_downline_id');
+            $downline_company_ids = $this->processSohDownlineCompanyIds($downline_company_ids_arr);
+            $this->querySohReport($current_dealer_company_id, $downline_company_ids, $folder_name);
+
+            foreach ($downline_company_ids_arr as $id) {
+                ArrayHelper::removeValue($this->soh_remaining_dealer_id, $id."");
+            }
+            ArrayHelper::removeValue($this->soh_remaining_dealer_id, $current_dealer_company_id."");
+        }
+        foreach ($this->soh_remaining_dealer_id as $distributor_id) {
+            if(ArrayHelper::isIn($distributor_id, $this->soh_remaining_dealer_id)){
+                $current_dealer_company_id = $distributor_id;
+                $downline_companies = DealerCompanyDealer::getDownlineArray($current_dealer_company_id);
+                $downline_company_ids_arr = ArrayHelper::getColumn($downline_companies, 'dealer_company_downline_id');
+                $downline_company_ids = $this->processSohDownlineCompanyIds($downline_company_ids_arr);
+                $this->querySohReport($current_dealer_company_id, $downline_company_ids, $folder_name);
+
+                foreach ($downline_company_ids_arr as $id) {
+                    ArrayHelper::removeValue($this->soh_remaining_dealer_id, $id."");
+                }
+                ArrayHelper::removeValue($this->soh_remaining_dealer_id, $current_dealer_company_id."");
+            }
+        }
+        return $folder_name;
+        // --------------------------------------------------------------------------------
+    }
+
+    public function generateClaimSubmissionReport(){
+        // Generating Claim Submission Report
+        // $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/claim_submissions"));
+        // $folder_name = 'report/[IP] '.$this->region_id." ".date("j_M_Y", $this->date_start)."_to_".date("j_M_Y", $this->date_end)."_reports/claim_submissions";
+
+        $folder_name = Utility::replacePathAccordingToOS(Yii::getAlias('@backend/web/report/'.$this->today." ".$this->region_id."/cs"));
+        // $folder_name = 'report/'.$this->today." ".$this->region_id."/cs";
+
+        if (!file_exists($folder_name)) {
+            mkdir($folder_name, 0777, true);
+        }
+        $this->queryClaimSubmissionReport($folder_name);
+        return $folder_name;
+        // --------------------------------------------------------------------------------
+    }
+
+    private function queryAmTransactionReport($distrubutor_company_id, $retailer_company_id, $folder_name){
+        $query = "
+            SELECT 
+                FROM_UNIXTIME(a.created_at, '%d/%m/%Y %H:%i%p') AS 'Date of Transaction',
+                IF(a.from_company_id = :retailer_company_id,
+                    b.business_name,
+                    c.business_name) AS 'Distributor Company',
+                IF(a.to_company_id = :retailer_company_id,
+                    '',
+                    c.business_name) AS 'Retail Company',
+                IF(a.from_company_id = :retailer_company_id,
+                    'Sales',
+                    'Purchase') AS 'Transaction',
+                IF(a.from_company_id = :retailer_company_id,
+                    CONCAT('-', a.amount),
+                    a.amount) AS 'Quantity',
+                CONCAT(d.name, ' (', d.description, ')') AS 'Policy Name'
+            FROM
+                instaprotection.dealer_inventory_allocation_history AS a
+                    LEFT JOIN
+                instaprotection.dealer_company AS b ON a.from_company_id = b.id
+                    LEFT JOIN
+                instaprotection.dealer_company AS c ON a.to_company_id = c.id
+                    LEFT JOIN
+                instaprotection.instap_plan AS d ON a.plan_id = d.id
+            WHERE
+                (a.from_company_id = :distributor_company_id
+                    AND a.to_company_id = :retailer_company_id
+                    OR a.from_company_id = :retailer_company_id)
+                    AND a.created_at >= :date_start
+                    AND a.created_at <= :date_end
+            ORDER BY a.created_at ASC;
+        ";
+        $result = \Yii::$app->db->createCommand($query)
+        ->bindValue(':distributor_company_id', $distrubutor_company_id)
+        ->bindValue(':retailer_company_id', $retailer_company_id)
+        ->bindValue(':date_start', $this->date_start)
+        ->bindValue(':date_end', $this->date_end)
+        ->queryAll();
+        // ->getRawSql();
+        // print_r($result); exit();
+
+        if(count($result) > 0){
+            $distributor_company_name = $result[0]['Distributor Company'];
+
+            $file_name = $folder_name."/AM_Transaction_Report(".$distributor_company_name.").csv";
+            $file = fopen($file_name, "w+");
+            $header = array_keys($result[0]);
+            fputcsv($file, $header);
+            foreach ($result as $line) {
+                fputcsv($file, str_replace("’","'",$line));
+                // fputcsv($file, $line);
+            }
+            fclose($file);
+        }
+    }
+
+    private function queryRetailerTransactionReport($current_dealer_company_id, $folder_name){
+        $query = "
+            SELECT 
+                FROM_UNIXTIME(a.created_at, '%d/%m/%Y %H:%i%p') AS 'Date of Transaction',
+                c.business_name AS 'Company',
+                CONCAT(d.first_name, d.last_name) AS 'Retails Assistance Name',
+                a.dealer_user_id AS 'Retail Assistance ID',
+                IF(b.plan_status = 'cancel',
+                    'Sales Return',
+                    'Sales') AS 'Transaction',
+                IF(b.plan_status = 'cancel', '', '-1') AS 'Quantity',
+                e.name AS 'Policy Name'
+            FROM
+                instaprotection.dealer_order AS a
+                    LEFT JOIN
+                instaprotection.instap_plan_pool AS b ON a.plan_pool_id = b.id
+                    LEFT JOIN
+                instaprotection.dealer_company AS c ON a.dealer_company_id = c.id
+                    LEFT JOIN
+                instaprotection.user_profile AS d ON a.dealer_user_id = d.user_id
+                    LEFT JOIN
+                instaprotection.instap_plan AS e ON b.plan_id = e.id
+            WHERE
+                a.dealer_company_id = :current_dealer_company_id 
+                    AND a.created_at >= :date_start 
+                    AND a.created_at <= :date_end;
+        ";
+        $result = \Yii::$app->db->createCommand($query)
+        ->bindValue(':current_dealer_company_id', $current_dealer_company_id)
+        ->bindValue(':date_start', $this->date_start)
+        ->bindValue(':date_end', $this->date_end)
+        // ->getRawSql();
+        ->queryAll();
+
+        if(count($result) > 0){
+            $company_name = $result[0]['Company'];
+
+            $file_name = $folder_name."/Retailer_Transaction_Report(".$company_name.").csv";
+            $file = fopen($file_name, "w+");
+            $header = array_keys($result[0]);
+            fputcsv($file, $header);
+            foreach ($result as $line) {
+                fputcsv($file, $line);
+            }
+            fclose($file);
+        }
+    }
+
+    private function querySohReport($current_dealer_company_id, $downline_company_ids, $folder_name){
+        $retail_company_list = [];
+        $downline_companies_condition = $downline_company_ids == "()" ? "" :"OR a.dealer_company_id IN ".$downline_company_ids;
+
+        $query = "
+            SELECT 
+                IF(a.dealer_company_id = :current_dealer_company_id,
+                    d.business_name,
+                    '') AS 'Distributor Company',
+                IF(a.dealer_company_id = :current_dealer_company_id,
+                    '',
+                    d.business_name) AS 'Retail Company',
+                e.name AS 'Policy Name',
+                a.overall - IF(b.sold IS NULL, 0, b.sold) - IF(c.allocated IS NULL, 0, c.allocated) AS 'Quantity'
+            FROM
+                (SELECT 
+                    to_company_id AS 'dealer_company_id',
+                        plan_id,
+                        SUM(amount) AS 'overall'
+                FROM
+                    instaprotection.dealer_inventory_allocation_history
+                WHERE
+                    action = 'allocate'
+                        AND created_at <= :date_end
+                GROUP BY to_company_id , plan_id) AS a
+                    LEFT JOIN
+                (SELECT 
+                    dealer_order.dealer_company_id AS 'dealer_company_id',
+                        instap_plan_pool.plan_id AS 'plan_id',
+                        COUNT(dealer_order.plan_pool_id) AS 'sold'
+                FROM
+                    instaprotection.dealer_order
+                LEFT JOIN instaprotection.instap_plan_pool ON dealer_order.plan_pool_id = instap_plan_pool.id
+                WHERE
+                    dealer_order.created_at <= :date_end
+                GROUP BY dealer_order.dealer_company_id , instap_plan_pool.plan_id) AS b ON a.dealer_company_id = b.dealer_company_id
+                    AND a.plan_id = b.plan_id
+                    LEFT JOIN
+                (SELECT 
+                    from_company_id, plan_id, SUM(amount) AS 'allocated'
+                FROM
+                    instaprotection.dealer_inventory_allocation_history
+                WHERE
+                    action = 'allocate'
+                        AND created_at <= :date_end
+                GROUP BY from_company_id , plan_id) AS c ON a.dealer_company_id = c.from_company_id
+                    AND a.plan_id = c.plan_id
+                    LEFT JOIN
+                instaprotection.dealer_company AS d ON a.dealer_company_id = d.id
+                    LEFT JOIN
+                instaprotection.instap_plan AS e ON a.plan_id = e.id
+            WHERE
+                a.dealer_company_id = :current_dealer_company_id
+                ".$downline_companies_condition."
+            ORDER BY a.dealer_company_id , a.plan_id;
+        ";
+        $result = \Yii::$app->db->createCommand($query)
+        ->bindValue(':current_dealer_company_id', $current_dealer_company_id)
+        ->bindValue(':date_end', $this->date_end)
+        ->queryAll();
+
+        if(count($result) > 0){
+            $company_name = DealerCompany::findOne($current_dealer_company_id)->business_name;
+
+            $file_name = $folder_name."/SOH_Report(".$company_name.").csv";
+            $file = fopen($file_name, "w+");
+            $header = array_keys($result[0]);
+            fputcsv($file, $header);
+            foreach ($result as $line) {
+                fputcsv($file, $line);
+                if(!empty($line['Retail Company'])){
+                    $retail_company_list[] = $line['Retail Company'];
+                }
+            }
+            fclose($file);
+
+            $retail_company_list = array_unique($retail_company_list);
+            ArrayHelper::removeValue($retail_company_list, $company_name);
+            foreach ($retail_company_list as $retail_company_name) {
+                $retail_company_id = DealerCompany::findOne(['business_name'=>$retail_company_name])->id;
+                $downline_companies = DealerCompanyDealer::getDownlineArray($retail_company_id);
+                $downline_company_ids_arr = ArrayHelper::getColumn($downline_companies, 'dealer_company_downline_id');
+                if(count($downline_company_ids_arr) > 0) {
+                    $downline_company_ids = $this->processSohDownlineCompanyIds($downline_company_ids_arr);
+                    $this->querySohReport($retail_company_id, $downline_company_ids, $folder_name);
+                    foreach ($downline_company_ids_arr as $id) {
+                        ArrayHelper::removeValue($this->soh_remaining_dealer_id, $id."");
+                    }
+                    ArrayHelper::removeValue($this->soh_remaining_dealer_id, $retail_company_id."");
+                }
+            }
+
+        }    
+    }
+
+    private function processSohDownlineCompanyIds($downline_company_ids_arr){
+        $downline_company_ids = "(";
+        for ($i=0; $i < count($downline_company_ids_arr); $i++) { 
+            $id = $downline_company_ids_arr[$i];
+            $downline_company_ids .= $id;
+            if($i < (count($downline_company_ids_arr)-1)){
+                $downline_company_ids .= ",";
+            }
+        }
+        $downline_company_ids .= ")";
+        return $downline_company_ids;
+    }
+
+    private function queryClaimSubmissionReport($folder_name){
+        $query = "
+            SELECT 
+                user_case.id AS 'CLAIM ID',
+                FROM_UNIXTIME(user_case.created_at, '%d/%m/%Y %H:%i%p') AS 'CLAIM SUBMISSION DATE',
+                CONCAT('\'', plan_detail.sp_imei, '\'') AS 'IMEI NO',
+                plan_detail.sp_brand AS 'BRAND',
+                CONCAT(plan_detail.sp_model_name,
+                        ' (',
+                        plan_detail.sp_model_number,
+                        ')') AS 'MODEL',
+                plan_detail.sp_device_purchase_date AS 'DEVICE PURCHASE DATE',
+                CONCAT(user_profile.first_name,
+                        ' ',
+                        user_profile.last_name) AS 'CUSTOMER NAME',
+                user.mobile_number_full AS 'CONTACT NO',
+                user.email AS 'EMAIL',
+                FROM_UNIXTIME(user_case.occurred_at, '%d/%m/%Y') AS 'DATE OF INCIDENT',
+                FROM_UNIXTIME(user_case.occurred_at, '%H:%i%p') AS 'TIME OF INCIDENT',
+                user_case.location AS 'LOCATION OF INCIDENT',
+                user_case.description AS 'INCIDENT DESCRIPTION',
+                CONCAT(plan.name, ' (', plan.sku, ')') AS 'PLAN',
+                IF(repair_completed_action.created_at IS NULL,
+                    '-',
+                    FROM_UNIXTIME(repair_completed_action.created_at,
+                            '%d/%m/%Y %H:%i%p')) AS 'REPAIR COMPLETION DATE',
+                IF(user_case.cost_repair IS NULL,
+                    '-',
+                    user_case.cost_repair) AS 'TOTAL REPAIR COST'
+            FROM
+                instaprotection.user_case AS user_case
+                    LEFT JOIN
+                instaprotection.user_case_action AS repair_completed_action ON user_case.id = repair_completed_action.case_id
+                    AND repair_completed_action.action_status = 'claim_repair_completed'
+                    LEFT JOIN
+                instaprotection.user_plan_detail AS plan_detail ON user_case.plan_pool_id = plan_detail.plan_pool_id
+                    LEFT JOIN
+                instaprotection.instap_plan_pool AS plan_pool ON user_case.plan_pool_id = plan_pool.id
+                    LEFT JOIN
+                instaprotection.instap_plan AS plan ON plan_pool.plan_id = plan.id
+                    LEFT JOIN
+                instaprotection.user AS user ON plan_pool.user_id = user.id
+                    LEFT JOIN
+                instaprotection.user_profile AS user_profile ON plan_pool.user_id = user_profile.user_id
+            WHERE
+                user_case.created_at >= :date_start
+                    AND user_case.created_at <= :date_end;
+                    AND plan_pool.region_id <= :region_id;
+
+        ";
+        $result = \Yii::$app->db->createCommand($query)
+        ->bindValue(':date_start', $this->date_start)
+        ->bindValue(':date_end', $this->date_end)
+        ->bindValue(':region_id', $this->region_id)
+        // ->getRawSql(); print_r($result); exit();
+        ->queryAll();
+
+        if(count($result) > 0){
+            $file_name = $folder_name."/claim_submission.csv";
+            $file = fopen($file_name, "w+");
+            $header = array_keys($result[0]);
+            fputcsv($file, $header);
+            foreach ($result as $line) {
+                fputcsv($file, $line);
+            }
+            fclose($file);
+        }
+    }
+
+    public function getMasterDistributorIDs(){
+        // TODO:: get master distributor current_dealer_company_id dynamically
+        return [
+            SysRegion::MALAYSIA => [
+                67, // SEMS Services Sdn Bhd (HQ)(67) is MY master distributor
+                80 // BK Two Mobile Enterprise(80) is MY master distributor
+            ],
+            SysRegion::SINGAPORE => [
+                3 // A-Mobile(3) is SG master distributor
+            ],
+            // SysRegion::THAILAND => [
+            // ],
+        ][$this->region_id];
+    }
+
+    public function getInstaprotectionID(){
+        return [
+            SysRegion::MALAYSIA => 2,
+            // SysRegion::MALAYSIA => 78,
+            SysRegion::SINGAPORE => 2,
+            // SysRegion::THAILAND => ,
+        ][$this->region_id];
+    }
+
+
+}
