@@ -26,7 +26,10 @@ use common\widgets\MyUpload\MyUpload;
         $form = ActiveForm::begin(); 
         $html = $form->field($model, 'sku')->textInput(['maxlength' => true]); 
         $html .= $form->field($model, 'category')->dropDownList($category, ['prompt' => ['text'=> '--Select--', 'options'=> ['disabled' => true, 'selected' => true]]]);
-        $html .= $form->field($model, 'tier')->dropDownList($tier, ['prompt' => ['text'=> '--Select--', 'options'=> ['disabled' => true, 'selected' => true]]]);
+        $html .= $form->field($model, 'tier')->dropDownList($tier, [
+            'prompt' => ['text'=> '--Select--', 'options'=> ['disabled' => true, 'selected' => true]],
+            'id' => 'tier-selection'
+        ]);
 
         /*$html .= $form->field($model, 'region_id')->widget(Select2::classname(), [
                 'data' => ArrayHelper::map(SysRegion::find()->all(), 'id', 'name'),
@@ -68,7 +71,8 @@ use common\widgets\MyUpload\MyUpload;
             ]
         );
 
-        $html .= $form->field($model, 'coverage_period')->textInput()->label("Coverage Period (Months)"); 
+        $html .= $form->field($model, 'coverage_period')->textInput()->label("Screen Crack Coverage Period (Months)"); 
+        $html .= $form->field($model, 'ew_coverage_period')->textInput()->label("E/W Coverage Period (Months)"); 
 
         $html .= $form->field($model, 'retail_price')->textInput(); 
         $html .= $form->field($model, 'premium_price')->textInput(); 
@@ -87,5 +91,30 @@ use common\widgets\MyUpload\MyUpload;
     </div>
 
     <?php ActiveForm::end(); ?>
+
+    <?php 
+    
+        $script = <<< JS
+
+        const changeTier = (selectedValue) => {
+            if(selectedValue == "ultimate_plus") {
+                coveragePeriodField.show();
+            } else {
+                coveragePeriodField.hide();
+            }
+        }
+
+        let coveragePeriodField = $('.field-instapplan-ew_coverage_period');
+        changeTier($("#tier-selection").val());
+
+        $("#tier-selection").change(function (e) {
+            let selectedValue = $(this).val();
+            changeTier(selectedValue);
+        });
+
+        JS;
+        $this->registerJs($script);
+    
+    ?>
 
 </div>

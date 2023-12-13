@@ -276,6 +276,13 @@ $bundle = BackendAsset::register($this);
                         'visible' =>Yii::$app->authManager->checkAccess(Yii::$app->user->id, User::ROLE_IP_ADMINISTRATOR) || Yii::$app->authManager->checkAccess(Yii::$app->user->id, User::ROLE_ADMINISTRATOR)
                     ],
                     [
+                        'label' => Yii::t('backend', 'Retail Stores'),
+                        'url' => ['/qcd-retail-store/index'],
+                        'active' => Yii::$app->controller->id == 'qcd-retail-store' || Yii::$app->controller->id == 'permission',
+                        'icon' => '<i class="fa fa-shopping-bag"></i>',
+                        'visible' =>Yii::$app->authManager->checkAccess(Yii::$app->user->id, User::ROLE_IP_ADMINISTRATOR) || Yii::$app->authManager->checkAccess(Yii::$app->user->id, User::ROLE_ADMINISTRATOR)
+                    ],
+                    [
                         'label' => Yii::t('backend', 'SYSTEM'),
                         'options' => ['class' => 'header'],
                     ],

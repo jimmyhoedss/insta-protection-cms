@@ -2,19 +2,19 @@
 
 use yii\helpers\Html;
 use yii\grid\GridView;
-use common\models\QcdDeviceMakerRepairCentre;
-use common\models\QcdInstapPlanRepairCentre;
+use common\models\QcdDeviceMakerRetailStore;
+use common\models\QcdInstapPlanRetailStore;
 /* @var $this yii\web\View */
-/* @var $searchModel common\models\search\QcdRepairCentreSearch */
+/* @var $searchModel common\models\search\QcdRetailStoreSearch */
 /* @var $dataProvider yii\data\ActiveDataProvider */
 
-$this->title = Yii::t('backend', 'Repair Centres');
+$this->title = Yii::t('backend', 'Retail Store');
 $this->params['breadcrumbs'][] = $this->title;
 ?>
 <div class="qcd-repair-centre-index">
 
     <p>
-        <?= Html::a(Yii::t('backend', 'Create Repair Centre'), ['create'], ['class' => 'btn btn-success']) ?>
+        <?= Html::a(Yii::t('backend', 'Create Retail Store'), ['create'], ['class' => 'btn btn-success']) ?>
     </p>
 
     <?php // echo $this->render('_search', ['model' => $searchModel]); ?>
@@ -37,7 +37,7 @@ $this->params['breadcrumbs'][] = $this->title;
             [          
                 'label'=>Yii::t('backend', 'Name'),
                 'format' => 'raw',
-                'attribute' => 'repair_centre',                
+                'attribute' => 'retail_store',                
                 'headerOptions' => ['width' => '250'],
             ],
             [   
@@ -56,8 +56,8 @@ $this->params['breadcrumbs'][] = $this->title;
                 'label'=>Yii::t('backend', 'Brand'),
                 'format' => 'raw',
                 'value' => function($model) { 
-                    $repair_centres = QcdDeviceMakerRepairCentre::find()->where(['repair_centre_id' => $model->id])->all();
-                    $html = $model->getBrandLayout($repair_centres);
+                    $retail_stores = QcdDeviceMakerRetailStore::find()->where(['retail_store_id' => $model->id])->all();
+                    $html = $model->getBrandLayout($retail_stores);
                     return $html;
                 },                 
                 'headerOptions' => ['width' => '250'],
@@ -66,8 +66,8 @@ $this->params['breadcrumbs'][] = $this->title;
                 'label'=>Yii::t('backend', 'Plan'),
                 'format' => 'raw',
                 'value' => function($model) { 
-                    $repair_centres = QcdInstapPlanRepairCentre::find()->where(['repair_centre_id' => $model->id])->all();
-                    $html = $model->getPlanLayout($repair_centres);
+                    $retail_stores = QcdInstapPlanRetailStore::find()->where(['retail_store_id' => $model->id])->all();
+                    $html = $model->getPlanLayout($retail_stores);
                     return $html;
                 },                 
                 'headerOptions' => ['width' => '250'],

@@ -21,8 +21,10 @@ use common\models\UserCase;
 use common\models\User;
 use common\models\UserPlanDetail;
 use common\models\QcdRepairCentre;
+use common\models\QcdRetailStore;
 use common\models\QcdDeviceMaker;
-use common\models\QcdDeviceMakerRepairCentre;
+//use common\models\QcdDeviceMakerRepairCentre;
+//use common\models\QcdDeviceMakerRetailStore;
 use common\models\InstapPlanPool;
 
 
@@ -41,11 +43,12 @@ class QcdController extends RestControllerBase
                 'actions' => [
                     'index' => ['GET'],
                     'list-repair-centre' => ['GET'],
+                    'list-retail-store' => ['GET'],
                 ],
             ],
             'authenticator' => [
                 'class' => HttpBearerAuth::className(),
-                'except' => ['index','list-repair-centre'],
+                'except' => ['index','list-repair-centre', 'list-retail-store'],
             ],
             'ActiveTimestampBehavior' => [
                 'class' => \common\behaviors\ActiveTimestampBehavior::className(),
@@ -82,7 +85,7 @@ class QcdController extends RestControllerBase
             throw new CustomHttpException($str, CustomHttpException::UNPROCESSABLE_ENTITY);
 
         }
-        $repair_centres = QcdRepairCentre::listRepairCentre($modelBrand, $region_id);        
+        $repair_centres = QcdRepairCentre::listRepairCentre($modelBrand, $region_id, $planPool->plan_id);        
         if(isset($repair_centres) != null) {
             
             Yii::$app->api->sendSuccessResponse($repair_centres);
@@ -94,6 +97,36 @@ class QcdController extends RestControllerBase
         
     }
 
+    public function actionListRetailStore($plan_pool_id) {
+        //should pass plan pool id to get brand?
 
-    
+        // $device_maker = QcdDeviceMaker::find()->where(['LOWER(device_maker)' => $b])->one();
+        $planPool = InstapPlanPool::find()->where(['id' => $plan_pool_id])->one();
+        if(!$planPool) {
+            $str =  Utility::jsonifyError("plan_pool_id", Yii::t('common', "Plan pool id not found."));
+            throw new CustomHttpException($str, CustomHttpException::UNPROCESSABLE_ENTITY);
+        }
+        
+        $brand = $planPool->userPlan->details->sp_brand;
+        $region_id = $planPool->region_id;
+        $b = strtolower($brand);
+        
+        $modelBrand = QcdDeviceMaker::find()->where(['LOWER(device_maker)' => $b])->one();
+
+        if(empty($modelBrand)) {
+            $str =  Utility::jsonifyError("brand", Yii::t('common', "Brand not available."));
+            throw new CustomHttpException($str, CustomHttpException::UNPROCESSABLE_ENTITY);
+
+        }
+        $retail_stores = QcdRetailStore::listRetailStore($modelBrand, $region_id, $planPool->plan_id);        
+        if(isset($retail_stores) != null) {
+            
+            Yii::$app->api->sendSuccessResponse($retail_stores);
+
+        }else {
+            $str =  Utility::jsonifyError("", Yii::t('common', "No Retail Store found."));
+            throw new CustomHttpException($str, CustomHttpException::UNPROCESSABLE_ENTITY);
+        }
+        
+    }
 }

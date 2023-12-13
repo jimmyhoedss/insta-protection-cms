@@ -47,8 +47,8 @@ class InstapPlan extends MyCustomActiveRecord
     const BASIC_PLUS = "basic_plus";
     const STANDARD = "standard";
     const PREMIUM = "premium";
-
-
+    const ULTIMATE = "ultimate";
+    const ULTIMATE_PLUS = "ultimate_plus";
 
     public function init(){
         //$this->detachBehavior('MyLatlngPickerBehavior');
@@ -62,11 +62,11 @@ class InstapPlan extends MyCustomActiveRecord
     public function rules()
     {
       return ArrayHelper::merge([
-            [['region_id','coverage_period','name', 'sku', 'retail_price', 'premium_price', 'dealer_price', 'master_policy_number', 'pdf', 'thumbnail'], 'required'],
+            [['region_id','coverage_period', 'ew_coverage_period', 'name', 'sku', 'retail_price', 'premium_price', 'dealer_price', 'master_policy_number', 'pdf', 'thumbnail'], 'required'],
             // [['category', 'description', 'status', 'webview_url'], 'string'],
             [['category', 'tier', 'description', 'status', 'webview_url'], 'string'], //include tier
             [['retail_price', 'premium_price', 'dealer_price'], 'number'],
-            [['coverage_period', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
+            [['coverage_period', 'ew_coverage_period', 'created_at', 'created_by', 'updated_at', 'updated_by'], 'integer'],
             [['sku','master_policy_number'], 'string', 'max' => 64],
             [['region_id'], 'string', 'max' => 8],
             [['name'], 'string', 'max' => 255],
@@ -87,7 +87,8 @@ class InstapPlan extends MyCustomActiveRecord
             'region_id' => Yii::t('common', 'Region ID'),
             'name' => Yii::t('common', 'Name'),
             'description' => Yii::t('common', 'Description'),
-            'coverage_period' => Yii::t('common', 'Coverage Period'),
+            'coverage_period' => Yii::t('common', 'Screen Crack Coverage Period'),
+            'ew_coverage_period' => Yii::t('common', 'E/W Coverage Period'),
             'retail_price' => Yii::t('common', 'Retail Price'),
             'premium_price' => Yii::t('common', 'Premium Price'),
             'dealer_price' => Yii::t('common', 'Dealer Price'),
@@ -241,6 +242,8 @@ class InstapPlan extends MyCustomActiveRecord
             self::BASIC_PLUS => Yii::t('common', 'Basic +'),
             self::STANDARD => Yii::t('common', 'Standard'),
             self::PREMIUM => Yii::t('common', 'Premium'),
+            self::ULTIMATE => Yii::t('common', 'Ultimate'),
+            self::ULTIMATE_PLUS => Yii::t('common', 'Ultimate +'),
 
             // debug
             // self::BASIC => Yii::t('common', 'Basic')

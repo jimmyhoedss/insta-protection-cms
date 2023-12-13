@@ -8,7 +8,7 @@ use Yii;
 use yii\web\JsExpression;
 use common\components\MyCustomBadRequestException;
 
-class QcdRepairCentreForm extends Model
+class QcdRetailStoreForm extends Model
 {
 
     public $brand_id_arr, $plan_id_arr;

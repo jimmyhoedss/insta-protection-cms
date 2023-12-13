@@ -51,7 +51,7 @@ class InstapPlanPool extends MyCustomActiveRecord
     public function rules() {
         return [
             [['plan_id', 'dealer_company_id', 'user_id', 'region_id', 'plan_category', 'plan_sku', 'policy_number'], 'required'],
-            [['plan_id', 'dealer_company_id', 'user_id', 'coverage_start_at', 'coverage_end_at'], 'integer'],
+            [['plan_id', 'dealer_company_id', 'user_id', 'coverage_start_at', 'coverage_end_at', 'ew_coverage_start_at', 'ew_coverage_end_at'], 'integer'],
             [['plan_category', 'plan_status', 'notes', 'status', 'plan_status_subtype'], 'string'],
             [['region_id'], 'string', 'max' => 8],
             [['plan_sku'], 'string', 'max' => 64],
@@ -66,7 +66,7 @@ class InstapPlanPool extends MyCustomActiveRecord
             'timestamp'  => [
                 'class' => TimestampBehavior::className(),
                 'attributes' => [
-                    ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at', 'coverage_start_at'],
+                    ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at', 'coverage_start_at', 'ew_coverage_start_at'],
                     ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at',],
                 ],
             ],
@@ -89,6 +89,8 @@ class InstapPlanPool extends MyCustomActiveRecord
             'notes' => Yii::t('common', 'Notes'),
             'coverage_start_at' => Yii::t('common', 'Coverage Start At'),
             'coverage_end_at' => Yii::t('common', 'Coverage End At'),
+            'ew_coverage_start_at' => Yii::t('common', 'E/W Coverage Start At'),
+            'ew_coverage_end_at' => Yii::t('common', 'E/W Coverage End At'),
             'status' => Yii::t('common', 'Status'),
             'created_at' => Yii::t('common', 'Created At'),
             'created_by' => Yii::t('common', 'Created By'),
@@ -221,6 +223,7 @@ class InstapPlanPool extends MyCustomActiveRecord
         $m->policy_number = "-";
         // date_default_timezone_set("Asia/Singapore");
         $m->coverage_end_at = strtotime("+".$plan->coverage_period." months midnight -1 day");
+        $m->ew_coverage_end_at = strtotime("+".$plan->ew_coverage_period." months midnight -1 day");
         return $m;
     }
 

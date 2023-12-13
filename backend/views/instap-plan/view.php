@@ -35,6 +35,14 @@ $this->params['breadcrumbs'][] = $this->title;
                     return $model->coverage_period. " months";
                 }
             ],
+            [
+                'attribute' => 'ew_coverage_period',
+                'format' => 'raw',
+                'headerOptions' => ['width' => '120px'],
+                'value' => function($model) {
+                    return $model->ew_coverage_period. " months";
+                }
+            ],
             'retail_price',
             'premium_price',
             'dealer_price',

@@ -58,13 +58,15 @@ class QcdRepairCentre extends \yii\db\ActiveRecord
         ];
     }
 
-     public static function listRepairCentre($brand, $region_id) {
+    public static function listRepairCentre($brand, $region_id, $plan_id) {
        
         if(isset($brand) != null) {
             $brand_id = $brand->device_maker_id;
             $repair_centres = QcdDeviceMakerRepairCentre::find()->where(['device_maker_id' => $brand_id])->asArray()->all();
 
             if(!empty($repair_centres)) {
+                $repair_centre_id_arr = array_column($repair_centres, 'repair_centre_id');
+                $repair_centres = QcdInstapPlanRepairCentre::find()->where(['instap_plan_id' => $plan_id])->andWhere(['in', 'repair_centre_id', $repair_centre_id_arr])->asArray()->all();
                 $repair_centre_id_arr = array_column($repair_centres, 'repair_centre_id');
                 $rc = SELF::find()->where(['in', 'id', $repair_centre_id_arr])->andWhere(['country_code' => $region_id, 'status' => MyCustomActiveRecord::STATUS_ENABLED])->all();
 
@@ -83,6 +85,14 @@ class QcdRepairCentre extends \yii\db\ActiveRecord
         $html = "";
         foreach ($repair_centre_arr as $repair_centre) {
             $html .= "<div class='brand'>" . $repair_centre->brand->device_maker. "</div>";
+        }
+        return $html;
+    }
+
+    public function getPlanLayout($repair_centre_arr) {
+        $html = "";
+        foreach ($repair_centre_arr as $repair_centre) {
+            $html .= "<div class='brand'>" . $repair_centre->plan->name. "</div>";
         }
         return $html;
     }

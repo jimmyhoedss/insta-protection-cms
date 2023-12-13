@@ -91,7 +91,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         $html .= "</div>";
                     }
                     $html .= "<div class='plan-detail'>" . $model->sku . "";
-                    $html .= "<br>" . $model->coverage_period . " months coverage</div>";
+                    $html .= "<br>" . ($model->coverage_period+$model->ew_coverage_period) . " months coverage</div>";
                     $html .= "</div>";
 
                     return $html;

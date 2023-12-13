@@ -152,7 +152,7 @@ class InstapPlanController extends Controller
 
     protected function findModelLocalisation($plan_id)
     {
-        if (($model = InstapPlanLocalization::findOne($plan_id)) !== null) {
+        if (($model = InstapPlanLocalization::find()->where(['plan_id' => $plan_id])->one()) !== null) {
             return $model;
         }
 

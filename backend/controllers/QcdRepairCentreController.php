@@ -5,6 +5,7 @@ namespace backend\controllers;
 use Yii;
 use common\models\QcdRepairCentre;
 use common\models\QcdDeviceMakerRepairCentre;
+use common\models\QcdInstapPlanRepairCentre;
 use common\models\form\QcdRepairCentreForm;
 use common\models\search\QcdRepairCentreSearch;
 use common\components\MyCustomActiveRecord;
@@ -53,7 +54,7 @@ class QcdRepairCentreController extends Controller
         $repairCentreForm = new QcdRepairCentreForm();
 
         if ($model->load(Yii::$app->request->post()) && $repairCentreForm->load(Yii::$app->request->post()) && $model->save()) {
-             $transaction = Yii::$app->db->beginTransaction();
+            $transaction = Yii::$app->db->beginTransaction();
             try {
                 $repair_centre_id = $model->id;            
                 if(!empty($repairCentreForm->brand_id_arr)) {
@@ -63,6 +64,15 @@ class QcdRepairCentreController extends Controller
                         $m->save();
                     }
                 }
+
+                if(!empty($repairCentreForm->plan_id_arr)) {
+                    $instap_plan_ids = array_map('intval', $repairCentreForm->plan_id_arr);
+                    foreach ($instap_plan_ids as $instap_plan_id) {
+                        $m = QcdInstapPlanRepairCentre::makeModel($instap_plan_id, $repair_centre_id);
+                        $m->save();
+                    }
+                }
+
                 $success = true;
                 
             }catch (yii\db\IntegrityException $e) {
@@ -88,12 +98,18 @@ class QcdRepairCentreController extends Controller
 
     public function actionUpdate($id)
     {
+
         $success = false;
         $model = $this->findModel($id);
         $repairCentreForm = new QcdRepairCentreForm();
-        $brands = QcdDeviceMakerRepairCentre::find()->where(['repair_centre_id' =>$model->id])->asArray()->all();
+
+        $brands = QcdDeviceMakerRepairCentre::find()->where(['repair_centre_id' => $model->id])->asArray()->all();
         $brand_arr = array_column($brands, 'device_maker_id');
         $repairCentreForm->brand_id_arr  = $brand_arr;
+
+        $plans = QcdInstapPlanRepairCentre::find()->where(['repair_centre_id' => $model->id])->asArray()->all();
+        $plan_arr = array_column($plans, 'instap_plan_id');
+        $repairCentreForm->plan_id_arr  = $plan_arr;
 
         if ($model->load(Yii::$app->request->post()) && $repairCentreForm->load(Yii::$app->request->post()) && $model->save()) {
              $transaction = Yii::$app->db->beginTransaction();
@@ -108,6 +124,16 @@ class QcdRepairCentreController extends Controller
                     }
                     // $model->validate();
                 }
+
+                QcdInstapPlanRepairCentre::deleteAll('repair_centre_id = :repair_centre_id', [':repair_centre_id' => $model->id]);                
+                if(!empty($repairCentreForm->plan_id_arr)) {
+                    $instap_plan_ids = array_map('intval', $repairCentreForm->plan_id_arr);
+                    foreach ($instap_plan_ids as $instap_plan_id) {
+                        $m = QcdInstapPlanRepairCentre::makeModel($instap_plan_id, $repair_centre_id);
+                        $m->save();
+                    }
+                }
+
                 $success = true;
                 
             }catch (yii\db\IntegrityException $e) {

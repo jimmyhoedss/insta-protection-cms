@@ -5,7 +5,7 @@ use yii\widgets\ActiveForm;
 use kartik\select2\Select2;
 use yii\helpers\ArrayHelper;
 use common\models\DealerCompany;
-use common\models\QcdRepairCentre;
+use common\models\QcdRetailStore;
 use common\models\QcdDeviceMaker;
 use common\models\InstapPlan;
 use common\models\SysRegion;
@@ -23,7 +23,7 @@ use common\models\SysRegion;
         //         'pluginOptions' => [
         //             'allowClear' => true ],
         //         ])->label('Repair Centre');
-        $html .= $form->field($model, 'repair_centre')->textInput(['maxlength' => true]);
+        $html .= $form->field($model, 'retail_store')->textInput(['maxlength' => true]);
         $html .= $form->field($model, 'country_code', ['template' => '{input}'])->hiddenInput(['value' => Yii::$app->session->get('region_id')]);
         // $html .= $form->field($model, 'country_code')->widget(Select2::classname(), [
         //         'data' => ArrayHelper::map(SysRegion::find()->all(), 'id', 'name'),
@@ -42,20 +42,19 @@ use common\models\SysRegion;
         $html .= $form->field($model, 'address')->textarea(['rows' => 6]); 
 
 
-        $html .= $form->field($repairCentreForm, 'brand_id_arr')->widget(Select2::classname(), [
+        $html .= $form->field($retailStoreForm, 'brand_id_arr')->widget(Select2::classname(), [
                 'data' => ArrayHelper::map(QcdDeviceMaker::find()->all(), 'device_maker_id', 'device_maker'),
                 'options' => ['placeholder' => 'Select Brand ...', 'multiple' => true],
                 'pluginOptions' => [
                     'allowClear' => true ],
                 ])->hint('Brand allow to repair in repair centre');
 
-        $html .= $form->field($repairCentreForm, 'plan_id_arr')->widget(Select2::classname(), [
+        $html .= $form->field($retailStoreForm, 'plan_id_arr')->widget(Select2::classname(), [
                 'data' => ArrayHelper::map(InstapPlan::find()->all(), 'id', 'name'),
                 'options' => ['placeholder' => 'Select Brand ...', 'multiple' => true],
                 'pluginOptions' => [
                     'allowClear' => true ],
                 ])->hint('Plan allow to use in retail centre');
-    
 
         // $html .= $form->field($model, 'status')->dropDownList([ 'enabled' => 'Enabled', 'disabled' => 'Disabled', ], ['prompt' => '']); 
 
