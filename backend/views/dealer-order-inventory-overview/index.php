@@ -26,7 +26,7 @@ $this->params['breadcrumbs'][] = $this->title;
         'options' => [
             'class' => 'table-responsive',
         ],
-        // 'filterModel' => $searchModel,
+        'filterModel' => $searchModel,
         'columns' => [
             [
                 'class' => 'yii\grid\SerialColumn',
@@ -35,7 +35,7 @@ $this->params['breadcrumbs'][] = $this->title;
             [
                 'label'=> Yii::t('backend','Company'),
                 'format' => 'raw',
-                'attribute' => 'company_name',
+                'attribute' => 'business_name',
                 'value' => function ($model) {
                     // $dealer = DealerCompany::find()->andWhere(["id"=>$model->dealer_company_id])->one();
                     $dealer = $model;
