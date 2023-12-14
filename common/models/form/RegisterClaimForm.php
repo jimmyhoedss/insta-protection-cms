@@ -26,15 +26,15 @@ use api\components\CustomHttpException;
 
 class RegisterClaimForm extends Model
 {
-    
+    public $claim_type;
     public $plan_pool_id;
     public $device_issue;
     public $repair_centre_id;
+    public $retail_store_id;
     public $check;
     public $location;
     public $occurred_at;
     public $contact_alt;
-    public $claim_type;
 
     public $image_file = [];
 
@@ -58,7 +58,7 @@ class RegisterClaimForm extends Model
                     return false;
                 }
             }, 'on'=>SELF::SCENARIO_CMS_FORM],
-            [['plan_pool_id', 'repair_centre_id', 'occurred_at'], 'integer'],
+            [['plan_pool_id', 'repair_centre_id', 'retail_store_id', 'occurred_at'], 'integer'],
             [['claim_type', 'location', 'contact_alt'], 'string'],
             [['device_issue'], 'string', 'max' => 500],
             [['device_issue', 'location', 'contact_alt'], 'filter', 'filter' => '\yii\helpers\HtmlPurifier::process'],
@@ -199,6 +199,7 @@ class RegisterClaimForm extends Model
             'plan_pool_id' => Yii::t('common', 'Plan Pool ID'),
             'device_issue' => Yii::t('common', 'Device Issue'),
             'repair_centre_id' => Yii::t('common', 'Repair Centre'),
+            'retail_store_id' => Yii::t('common', 'Retail Store'),
             'check' => Yii::t('common', 'Disclaimers'),
             'occurred_at' => Yii::t('common', 'Occurred At'),
             'location' => Yii::t('common', 'Location'),
