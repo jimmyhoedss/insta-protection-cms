@@ -34,6 +34,7 @@ class RegisterClaimForm extends Model
     public $location;
     public $occurred_at;
     public $contact_alt;
+    public $claim_type;
 
     public $image_file = [];
 
@@ -49,7 +50,7 @@ class RegisterClaimForm extends Model
     public function rules()
     {
         return [
-            [['plan_pool_id', 'device_issue', 'repair_centre_id', 'location', 'occurred_at','contact_alt'], 'required'],
+            [['claim_type', 'plan_pool_id', 'device_issue', 'repair_centre_id', 'location', 'occurred_at','contact_alt'], 'required'],
             ['check', 'required', 'on'=>SELF::SCENARIO_CMS_FORM],
             ['check',function ($attribute) {
                 if(count($this->$attribute) < 3){
@@ -58,7 +59,7 @@ class RegisterClaimForm extends Model
                 }
             }, 'on'=>SELF::SCENARIO_CMS_FORM],
             [['plan_pool_id', 'repair_centre_id', 'occurred_at'], 'integer'],
-            [['location', 'contact_alt'], 'string'],
+            [['claim_type', 'location', 'contact_alt'], 'string'],
             [['device_issue'], 'string', 'max' => 500],
             [['device_issue', 'location', 'contact_alt'], 'filter', 'filter' => '\yii\helpers\HtmlPurifier::process'],
             [['image_file'], 'image', 'skipOnEmpty' => false, 'extensions' => 'png, jpg, jpeg', 'maxSize'=>1024 * 1024 * 25, 'maxFiles' => 5],
