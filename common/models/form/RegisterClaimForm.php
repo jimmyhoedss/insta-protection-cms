@@ -12,9 +12,10 @@ use common\models\UserCaseAction;
 use common\models\UserCaseActionLog;
 use common\models\UserCaseActionDocument;
 use common\models\UserCaseRepairCentre;
+use common\models\UserCaseRetailStore;
 use common\models\QcdClaimRegistration;
 use common\models\QcdRepairCentre;
-
+use common\models\QcdRetailStore;
 use common\models\fcm\FcmCaseStatusChanged;
 
 use common\jobs\EmailQueueJob;
@@ -66,6 +67,7 @@ class RegisterClaimForm extends Model
         if ($this->validate()) {
 
             $planPool = InstapPlanPool::find()->Where(["id"=>$this->plan_pool_id])->one();
+            $plan = InstapPlan::find()->Where(["id"=>$planPool->plan_id])->one();
 
             if (Yii::$app->user->can('editOwnModel', ['model' => $planPool, 'attribute'=>'user_id'])) {
                 if($planPool->plan_status == InstapPlanPool::STATUS_ACTIVE){
@@ -77,7 +79,7 @@ class RegisterClaimForm extends Model
                     
                     $transaction = Yii::$app->db->beginTransaction();
 
-                    $case = UserCase::makeModel($planPool, UserCase::CASE_STATUS_CLAIM_PENDING, $this->device_issue, $this->location, $this->occurred_at, $this->contact_alt);
+                    $case = UserCase::makeModel($planPool, UserCase::CASE_STATUS_CLAIM_PENDING, $this->device_issue, $this->location, $this->occurred_at, $this->contact_alt, $this->claim_type);
                     if($case->save()){
                         $caseAction = UserCaseAction::makeModel($case, UserCaseAction::ACTION_CLAIM_SUBMIT);
                         $caseActionPhoto = UserCaseAction::makeModel($case, UserCaseAction::ACTION_CLAIM_UPLOAD_PHOTO);
@@ -94,7 +96,19 @@ class RegisterClaimForm extends Model
                             return null;
                         }
 
-                        if($caseAction->save() && $repairCentre->save() && $caseActionPhoto->save() && $actionLog->save()) {
+                        $retailStoreSave = true;
+                        if(($this->claim_type == 'replacement' || $this->claim_type == 'upgrade') && $plan->tier == 'ultimate_plus') {
+                            $retailStore = QcdRetailStore::find()->where(['id' => $this->retail_store_id ])->one();
+                            if($retailStore){
+                                $retailStore = UserCaseRetailStore::makeModel($case, $planPool->plan_category, $retailStore);
+                            } else {
+                                $this->addError('retail_store_id', Yii::t('common', "Invalid retail store id."));
+                                $transaction->rollback();
+                                return null;
+                            }
+                            $retailStoreSave = $retailStore->save();
+                        }
+                        if($caseAction->save() && $repairCentre->save() && $retailStoreSave && $caseActionPhoto->save() && $actionLog->save()) {
                             
                             $planPool->updateAttributes(["plan_status"=>InstapPlanPool::STATUS_PENDING_CLAIM]);
 

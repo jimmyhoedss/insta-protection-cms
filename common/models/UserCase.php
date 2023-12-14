@@ -32,7 +32,7 @@ class UserCase extends MyCustomActiveRecord
     public function rules()
     {
         return [
-            [['plan_pool_id', 'user_id', 'current_case_status'], 'required'],
+            [['plan_pool_id', 'user_id', 'current_case_status', 'category'], 'required'],
             [['id', 'plan_pool_id', 'user_id', 'created_at', 'created_by', 'updated_at', 'updated_by', 'occurred_at'], 'integer'],
             [['cost_repair'], 'number'],
             ['cost_repair', 'required', 'when' => function($model, $attributes) {
@@ -40,7 +40,7 @@ class UserCase extends MyCustomActiveRecord
                     return true;
                 }
             }],
-            [['case_type', 'current_case_status', 'notes', 'status', 'description', 'location', 'contact_alt'], 'string'],
+            [['case_type', 'current_case_status', 'notes', 'status', 'description', 'location', 'contact_alt', 'category'], 'string'],
             [['notes', 'description', 'contact_alt'], 'filter', 'filter' => '\yii\helpers\HtmlPurifier::process'],
             ['current_case_status', 'in', 'range' => array_keys(self::allCaseStatus())]
         ];
@@ -156,8 +156,9 @@ class UserCase extends MyCustomActiveRecord
         return $m;
     }
 
-    public static function makeModel($p, $current_case_status, $device_issue, $location, $occurred_at, $contact_alt) {       
+    public static function makeModel($p, $current_case_status, $device_issue, $location, $occurred_at, $contact_alt, $claim_type) {       
         $m = new SELF();
+        $m->category = $claim_type;
         $m->plan_pool_id = $p->id;
         $m->user_id = $p->user_id;
         $m->description = $device_issue;
