@@ -6,6 +6,7 @@ use yii\base\Model;
 use yii\helper\ArrayHelper;
 use yii\web\UploadedFile;
 
+use common\models\InstapPlan;
 use common\models\InstapPlanPool;
 use common\models\UserCase;
 use common\models\UserCaseAction;
