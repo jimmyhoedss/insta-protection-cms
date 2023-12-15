@@ -66,7 +66,7 @@ class InstapPlanPool extends MyCustomActiveRecord
             'timestamp'  => [
                 'class' => TimestampBehavior::className(),
                 'attributes' => [
-                    ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at', 'coverage_start_at', 'ew_coverage_start_at'],
+                    ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at', 'coverage_start_at'],
                     ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at',],
                 ],
             ],
@@ -223,7 +223,8 @@ class InstapPlanPool extends MyCustomActiveRecord
         $m->policy_number = "-";
         // date_default_timezone_set("Asia/Singapore");
         $m->coverage_end_at = strtotime("+".$plan->coverage_period." months midnight -1 day");
-        $m->ew_coverage_end_at = strtotime("+".$plan->ew_coverage_period." months midnight -1 day");
+        $m->ew_coverage_start_at = strtotime("+".$plan->coverage_period." months midnight");
+        $m->ew_coverage_end_at = strtotime("+".($plan->coverage_period+$plan->ew_coverage_period)." months midnight -1 day");
         return $m;
     }
 
