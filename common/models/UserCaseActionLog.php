@@ -25,7 +25,7 @@ class UserCaseActionLog extends \yii\db\ActiveRecord
             [['action_status', 'status'], 'string'],
             [['region_id', 'plan_category'], 'string', 'max' => 4],
             [['plan_name'], 'string', 'max' => 255],
-            [['plan_tier'], 'string', 'max' => 11],
+            [['plan_tier'], 'string', 'max' => 255],
         ];
     }
 
