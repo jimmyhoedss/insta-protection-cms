@@ -61,7 +61,7 @@ class RegisterClaimForm extends Model
             [['plan_pool_id', 'repair_centre_id', 'retail_store_id', 'occurred_at'], 'integer'],
             [['claim_type', 'location', 'contact_alt'], 'string'],
             [['device_issue'], 'string', 'max' => 500],
-            [['device_issue', 'location', 'contact_alt'], 'filter', 'filter' => '\yii\helpers\HtmlPurifier::process'],
+            [['device_issue', 'location', 'contact_alt', 'claim_type'], 'filter', 'filter' => '\yii\helpers\HtmlPurifier::process'],
             [['image_file'], 'image', 'skipOnEmpty' => false, 'extensions' => 'png, jpg, jpeg', 'maxSize'=>1024 * 1024 * 25, 'maxFiles' => 5],
         ];
     }
