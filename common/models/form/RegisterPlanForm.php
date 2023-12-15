@@ -74,10 +74,10 @@ class RegisterPlanForm extends Model
             $this->addError('plan_pool_id', Yii::t('common', "Cannot register. Plan status is")." [". $planPool->plan_status . "]");
             return null;
         }
-        if($planPool->user->email_status != User::EMAIL_STATUS_VERIFIED) {
+        /*if($planPool->user->email_status != User::EMAIL_STATUS_VERIFIED) {
             $this->addError('plan_pool_id', Yii::t('common', "Please verify email first."));
             return null;
-        }
+        }*/
 
         $success = false;
         $transaction = Yii::$app->db->beginTransaction();
