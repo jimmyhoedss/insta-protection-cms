@@ -99,7 +99,7 @@ class RegisterClaimForm extends Model
                         }
 
                         $retailStoreSave = true;
-                        if(($this->claim_type == 'replacement' || $this->claim_type == 'upgrade') && $plan->tier == 'ultimate_plus') {
+                        /*if(($this->claim_type == 'replacement' || $this->claim_type == 'upgrade') && $plan->tier == 'ultimate_plus') {
                             $retailStore = QcdRetailStore::find()->where(['id' => $this->retail_store_id ])->one();
                             if($retailStore){
                                 $retailStore = UserCaseRetailStore::makeModel($case, $planPool->plan_category, $retailStore);
@@ -109,7 +109,7 @@ class RegisterClaimForm extends Model
                                 return null;
                             }
                             $retailStoreSave = $retailStore->save();
-                        }
+                        }*/
                         if($caseAction->save() && $repairCentre->save() && $retailStoreSave && $caseActionPhoto->save() && $actionLog->save()) {
                             
                             $planPool->updateAttributes(["plan_status"=>InstapPlanPool::STATUS_PENDING_CLAIM]);
@@ -125,12 +125,12 @@ class RegisterClaimForm extends Model
                                         throw CustomHttpException::internalServerError(Yii::t('common',"Cannot update case photo."));
                                     }                        
                                 }
-                                $fcm = new FcmCaseStatusChanged($case);
-                                $fcm->send();
+                                //$fcm = new FcmCaseStatusChanged($case);
+                                //$fcm->send();
                                 // if ($modelAction->action_status == UserCaseAction::ACTION_CLAIM_REQUIRE_CLARIFICATION) {
                                     //ToDo: sent email to user when case status is require clarification
                                     //get language session and change the email language accordingly
-                                     Yii::$app->queue->delay(0)->push(new EmailQueueJob([
+                                     /*Yii::$app->queue->delay(0)->push(new EmailQueueJob([
                                         'subject' => Yii::t('frontend', '[InstaProtection] Claim Submission Received'),
                                         'view' => 'claimSubmissionReceived',
                                         'language' => 'id-ID',
@@ -138,7 +138,7 @@ class RegisterClaimForm extends Model
                                         'params' => [
                                             'user' => 'Sir/ Madam',
                                         ]
-                                    ]));
+                                    ]));*/
 
                                 // }
                                 // print_r($fcm);
