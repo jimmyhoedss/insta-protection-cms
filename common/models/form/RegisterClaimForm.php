@@ -69,7 +69,7 @@ class RegisterClaimForm extends Model
         if ($this->validate()) {
 
             $planPool = InstapPlanPool::find()->Where(["id"=>$this->plan_pool_id])->one();
-            $plan = InstapPlan::find()->Where(["id"=>$planPool->plan_id])->one();
+            //$plan = InstapPlan::find()->Where(["id"=>$planPool->plan_id])->one();
 
             if (Yii::$app->user->can('editOwnModel', ['model' => $planPool, 'attribute'=>'user_id'])) {
                 if($planPool->plan_status == InstapPlanPool::STATUS_ACTIVE){
