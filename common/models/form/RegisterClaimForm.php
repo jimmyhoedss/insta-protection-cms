@@ -79,10 +79,82 @@ class RegisterClaimForm extends Model
                         return null;
                     }
                     
-                    //$transaction = Yii::$app->db->beginTransaction();
+                    $transaction = Yii::$app->db->beginTransaction();
 
                     $case = UserCase::makeModel($planPool, UserCase::CASE_STATUS_CLAIM_PENDING, $this->device_issue, $this->location, $this->occurred_at, $this->contact_alt, $this->claim_type);
-                    return $case;
+                    if($case->save()){
+                        $caseAction = UserCaseAction::makeModel($case, UserCaseAction::ACTION_CLAIM_SUBMIT);
+                        $caseActionPhoto = UserCaseAction::makeModel($case, UserCaseAction::ACTION_CLAIM_UPLOAD_PHOTO);
+                        //save log for dashboard plotting
+                        $actionLog = UserCaseActionLog::makeModel($case, UserCaseAction::ACTION_CLAIM_SUBMIT);
+
+                        // $repairCentreDetails = UserCaseRepairCentre::getRepairCentreDetails($this->repair_centre_id);
+                        $repairCentre = QcdRepairCentre::find()->where(['id' =>$this->repair_centre_id ])->one();
+                        if($repairCentre){
+                            $repairCentre = UserCaseRepairCentre::makeModel($case, $planPool->plan_category, $repairCentre);
+                        } else {
+                            $this->addError('repair_centre_id', Yii::t('common', "Invalid repair centre id."));
+                            $transaction->rollback();
+                            return null;
+                        }
+
+                        $retailStoreSave = true;
+                        /*if(($this->claim_type == 'replacement' || $this->claim_type == 'upgrade') && $plan->tier == 'ultimate_plus') {
+                            $retailStore = QcdRetailStore::find()->where(['id' => $this->retail_store_id ])->one();
+                            if($retailStore){
+                                $retailStore = UserCaseRetailStore::makeModel($case, $planPool->plan_category, $retailStore);
+                            } else {
+                                $this->addError('retail_store_id', Yii::t('common', "Invalid retail store id."));
+                                $transaction->rollback();
+                                return null;
+                            }
+                            $retailStoreSave = $retailStore->save();
+                        }*/
+                        $transaction->rollback();
+                        return $case;
+                        if($caseAction->save() && $repairCentre->save() && $retailStoreSave && $caseActionPhoto->save() && $actionLog->save()) {
+                            
+                            $planPool->updateAttributes(["plan_status"=>InstapPlanPool::STATUS_PENDING_CLAIM]);
+
+                            try {
+                              
+                                $arr = $this->uploadPhotos();
+                                //loop & save all photos to model
+                                for ($i=0; $i < count($arr); $i++) {
+                                    $item = $arr[$i];
+                                    $p = UserCaseActionDocument::makeModel($caseActionPhoto, $item, UserCaseActionDocument::TYPE_INCIDENT);
+                                    if(!$p->save()) {
+                                        throw CustomHttpException::internalServerError(Yii::t('common',"Cannot update case photo."));
+                                    }                        
+                                }
+                                //$fcm = new FcmCaseStatusChanged($case);
+                                //$fcm->send();
+                                // if ($modelAction->action_status == UserCaseAction::ACTION_CLAIM_REQUIRE_CLARIFICATION) {
+                                    //ToDo: sent email to user when case status is require clarification
+                                    //get language session and change the email language accordingly
+                                     /*Yii::$app->queue->delay(0)->push(new EmailQueueJob([
+                                        'subject' => Yii::t('frontend', '[InstaProtection] Claim Submission Received'),
+                                        'view' => 'claimSubmissionReceived',
+                                        'language' => 'id-ID',
+                                        'to' => $planPool->user->email,
+                                        'params' => [
+                                            'user' => 'Sir/ Madam',
+                                        ]
+                                    ]));*/
+
+                                // }
+                                // print_r($fcm);
+                                // exit();
+                                $transaction->commit();
+                                return $case;
+
+                            } catch (yii\db\IntegrityException $e) {
+                                $transaction->rollback();
+                                throw CustomHttpException::internalServerError(Yii::t('common',"Cannot update case photo."));
+                            }
+                            throw CustomHttpException::internalServerError(Yii::t('common',"Cannot update case action."));
+                        }
+                    }
                 } else {
                     $this->addError('plan_pool_id', Yii::t('common', "Plan not approved."));
                 }
