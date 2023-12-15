@@ -69,7 +69,7 @@ class RegisterClaimForm extends Model
         if ($this->validate()) {
 
             $planPool = InstapPlanPool::find()->Where(["id"=>$this->plan_pool_id])->one();
-            //$plan = InstapPlan::find()->Where(["id"=>$planPool->plan_id])->one();
+            $plan = InstapPlan::find()->Where(["id"=>$planPool->plan_id])->one();
 
             if (Yii::$app->user->can('editOwnModel', ['model' => $planPool, 'attribute'=>'user_id'])) {
                 if($planPool->plan_status == InstapPlanPool::STATUS_ACTIVE){
@@ -99,7 +99,7 @@ class RegisterClaimForm extends Model
                         }
 
                         $retailStoreSave = true;
-                        /*if(($this->claim_type == 'replacement' || $this->claim_type == 'upgrade') && $plan->tier == 'ultimate_plus') {
+                        if(($this->claim_type == 'replacement' || $this->claim_type == 'upgrade') && $plan->tier == 'ultimate_plus') {
                             $retailStore = QcdRetailStore::find()->where(['id' => $this->retail_store_id ])->one();
                             if($retailStore){
                                 $retailStore = UserCaseRetailStore::makeModel($case, $planPool->plan_category, $retailStore);
@@ -109,7 +109,7 @@ class RegisterClaimForm extends Model
                                 return null;
                             }
                             $retailStoreSave = $retailStore->save();
-                        }*/
+                        }
                         $transaction->rollback();
                         return $case;
                         if($caseAction->save() && $repairCentre->save() && $retailStoreSave && $caseActionPhoto->save() && $actionLog->save()) {
