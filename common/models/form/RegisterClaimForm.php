@@ -110,9 +110,10 @@ class RegisterClaimForm extends Model
                             }
                             $retailStoreSave = $retailStore->save();
                         }
-                        $transaction->rollback();
-                        return $returnData;
+
                         if($caseAction->save() && $repairCentre->save() && $retailStoreSave && $caseActionPhoto->save() && $actionLog->save()) {
+                            $transaction->rollback();
+                            return $case;
                             
                             $planPool->updateAttributes(["plan_status"=>InstapPlanPool::STATUS_PENDING_CLAIM]);
 
