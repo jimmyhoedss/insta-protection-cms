@@ -158,6 +158,8 @@ class UserPlan extends MyCustomActiveRecord
         // $instap_plan->thumbnail_path = $plan->thumbnail_path;
         $instap_plan->coverage_start_at = $p->coverage_start_at;
         $instap_plan->coverage_end_at = $p->coverage_end_at;
+        $instap_plan->ew_coverage_start_at = $p->ew_coverage_start_at;
+        $instap_plan->ew_coverage_end_at = $p->ew_coverage_end_at;
         $o->instap_plan = $instap_plan;
         $cps = get_object_vars($this->planActionObject($p));
         if(!empty($cps)) {
