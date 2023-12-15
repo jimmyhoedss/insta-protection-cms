@@ -110,7 +110,7 @@ class RegisterClaimForm extends Model
                             }
                             $retailStoreSave = $retailStore->save();
                         }
-                        $returnData = $repairCentre->save();
+                        $returnData = $retailStoreSave;
                         $transaction->rollback();
                         return $returnData;
                         if($caseAction->save() && $repairCentre->save() && $retailStoreSave && $caseActionPhoto->save() && $actionLog->save()) {
