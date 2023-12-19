@@ -16,6 +16,7 @@ class InstapPlanPoolSearch extends InstapPlanPool
     public $full_name;
     public $company_name;
     public $coverage_period;
+    public $ew_coverage_period;
     public $plan_type;
     public $planController = false;
     public $user_id;
@@ -32,7 +33,7 @@ class InstapPlanPoolSearch extends InstapPlanPool
     public function rules()
     {
         return [
-            [['id', 'plan_id', 'user_id','coverage_start_at', 'coverage_end_at', 'created_by','ew_coverage_start_at', 'ew_coverage_end_at', 'updated_by'], 'integer'],
+            [['id', 'plan_id', 'user_id','coverage_start_at', 'coverage_end_at', 'ew_coverage_start_at', 'ew_coverage_end_at', 'created_by', 'updated_by'], 'integer'],
             [['region_id', 'plan_category', 'plan_sku', 'policy_number', 'plan_status', 'notes', 'status','full_name', 'plan_type', 'company_name', 'dealer_company_id'], 'safe'],
             [['created_at', 'updated_at', 'coverage_period', 'ew_coverage_period'], 'date', 'format'=>'dd-MM-yyyy', 'message'=>'{attribute} must be DD/MM/YYYY format.'],
         ];
