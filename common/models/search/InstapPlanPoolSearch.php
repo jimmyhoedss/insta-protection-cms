@@ -32,9 +32,9 @@ class InstapPlanPoolSearch extends InstapPlanPool
     public function rules()
     {
         return [
-            [['id', 'plan_id', 'user_id','coverage_start_at', 'coverage_end_at', 'created_by', 'updated_by'], 'integer'],
+            [['id', 'plan_id', 'user_id','coverage_start_at', 'coverage_end_at', 'created_by','ew_coverage_start_at', 'ew_coverage_end_at', 'updated_by'], 'integer'],
             [['region_id', 'plan_category', 'plan_sku', 'policy_number', 'plan_status', 'notes', 'status','full_name', 'plan_type', 'company_name', 'dealer_company_id'], 'safe'],
-            [['created_at', 'updated_at', 'coverage_period'], 'date', 'format'=>'dd-MM-yyyy', 'message'=>'{attribute} must be DD/MM/YYYY format.'],
+            [['created_at', 'updated_at', 'coverage_period', 'ew_coverage_period'], 'date', 'format'=>'dd-MM-yyyy', 'message'=>'{attribute} must be DD/MM/YYYY format.'],
         ];
     }
 
@@ -158,6 +158,7 @@ class InstapPlanPoolSearch extends InstapPlanPool
               // ->andFilterWhere(['like', 'instap_plan.coverage_period', $this->coverage_period])
               ->andFilterWhere(['like', 'instap_plan.name', $this->plan_type])
               ->andFilterWhere(['like', "(date_format(FROM_UNIXTIME(instap_plan_pool.coverage_start_at), '%d-%m-%Y %h:%i:%s %p' ))", $this->coverage_period])
+              ->andFilterWhere(['like', "(date_format(FROM_UNIXTIME(instap_plan_pool.ew_coverage_start_at), '%d-%m-%Y %h:%i:%s %p' ))", $this->ew_coverage_period])
               ->andFilterWhere(['like', "(date_format(FROM_UNIXTIME(instap_plan_pool.created_at), '%d-%m-%Y %h:%i:%s %p' ))", $this->created_at])
               ->andFilterWhere(['like', "(date_format(FROM_UNIXTIME(instap_plan_pool.updated_at), '%d-%m-%Y %h:%i:%s %p' ))", $this->updated_at]);
               //oh:filter by date

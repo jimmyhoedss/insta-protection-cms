@@ -257,7 +257,8 @@ class InstapPlanPool extends MyCustomActiveRecord
         $html = "<table class='table'><thead><tr>";
         $html .= "<th width='150'>".Yii::t("common", "Plan Name")."</th>";
         $html .= "<th width='*'>".Yii::t("common","Policy Number")."</th>";
-        $html .= "<th width='150'>".Yii::t("common","Coverage Period")."</th>";
+        $html .= "<th width='200'>".Yii::t("common","Screen Crack Coverage Period")."</th>";
+        $html .= "<th width='150'>".Yii::t("common","E/W Coverage Period")."</th>";
 
         $html .= "<th width='200'>".Yii::t("common","Purchased From")."</th>";
         $html .= "<th width='100'>".Yii::t("common","Plan Status")."</th>";
@@ -267,6 +268,7 @@ class InstapPlanPool extends MyCustomActiveRecord
         $html .= "<td>" . $model->plan->getPlanBanner() . "</td>";
         $html .= "<td>" . $model->policy_number . "</td>";
         $html .= "<td>" . $model->getCoverageLayout() . "</td>";
+        $html .= "<td>" . $model->getEWCoverageLayout() . "</td>";
         $html .= "<td>" . $model->dealerCompany->getContactSmallLayout($linkToCompany). 
                  "<br>" .$model->dealerOrder->userProfile->getAvatarSmallLayout($linkToStaff).
                  "</td>";
@@ -287,6 +289,22 @@ class InstapPlanPool extends MyCustomActiveRecord
         if($daysleft > 0){
             $html = "<p>".Yii::t('common', 'start:')." <b>".Yii::$app->formatter->asDate($model->coverage_start_at)."</b><br>";
             $html .= Yii::t('common', 'end:')."&nbsp; <b>".Yii::$app->formatter->asDate($model->coverage_end_at)."</b><br>";
+            $html .= "[".$daysleft." ".Yii::t('common','days remaining.')."]</p>";
+        } else {
+            $html = "<p>" .Yii::t('common','Expired'). "</p>";
+        }
+        // $html .= "[".$model->plan->coverage_period." months]</p>";
+        return $html;
+    }
+    public function getEWCoverageLayout() {
+        $model = $this;
+        $future = $model->ew_coverage_end_at; //Future date.
+        $timefromdb = strtotime('today'); //source time
+        $timeleft = $future-$timefromdb;
+        $daysleft = round((($timeleft/24)/60)/60); 
+        if($daysleft > 0){
+            $html = "<p>".Yii::t('common', 'start:')." <b>".Yii::$app->formatter->asDate($model->ew_coverage_start_at)."</b><br>";
+            $html .= Yii::t('common', 'end:')."&nbsp; <b>".Yii::$app->formatter->asDate($model->ew_coverage_end_at)."</b><br>";
             $html .= "[".$daysleft." ".Yii::t('common','days remaining.')."]</p>";
         } else {
             $html = "<p>" .Yii::t('common','Expired'). "</p>";

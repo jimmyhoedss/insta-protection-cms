@@ -69,12 +69,32 @@ $this->params['breadcrumbs'][] = $this->title;
                 'headerOptions' => ['width' => '*'],
             ],
             [   
-                'label'=>Yii::t('backend','Coverage Period'),
+                'label'=>Yii::t('backend','Screen Crack Coverage Period'),
                 'format' => 'raw',
                 'attribute' => 'coverage_period',
                 'filter' => '',
                 'value' => function($model) { 
                     $html = $model->getCoverageLayout();
+                    // $html .= "[".$model->plan->coverage_period." months]</p>";
+                    return $html;
+                },  
+                'filterType' => GridView::FILTER_DATE,
+                'filterWidgetOptions' => [
+                  'pluginOptions' => [
+                    'format' => 'dd-mm-yyyy',
+                    'autoclose' => true,
+                    'todayHighlight' => true,
+                  ]
+                ],                 
+                'headerOptions' => ['width' => '150px'],
+            ],
+            [   
+                'label'=>Yii::t('backend','E/W Coverage Period'),
+                'format' => 'raw',
+                'attribute' => 'ew_coverage_period',
+                'filter' => '',
+                'value' => function($model) { 
+                    $html = $model->getEWCoverageLayout();
                     // $html .= "[".$model->plan->coverage_period." months]</p>";
                     return $html;
                 },  
