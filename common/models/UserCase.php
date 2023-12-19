@@ -18,6 +18,10 @@ class UserCase extends MyCustomActiveRecord
     const CASE_STATUS_CLAIM_CLOSED = "claim_closed";
     const CASE_STATUS_CLAIM_CANCELLED = "claim_cancelled";
     const CASE_STATUS_CLAIM_REJECTED = "claim_rejected";    
+
+    const CLAIM_TYPE_REPAIR = "repair";
+    const CLAIM_TYPE_REPLACEMENT = "replacement";
+    const CLAIM_TYPE_UPGRADE = "upgrade";
     
     //const CASE_STATUS_SERVICE_PROVIDER_REGISTERED = "service_provider_registered";
     //const CASE_STATUS_SERVICE_PROVIDER_PENDING_REPAIR = "service_provider_pending_repair";
@@ -75,6 +79,14 @@ class UserCase extends MyCustomActiveRecord
             self::CASE_STATUS_CLAIM_CLOSED => Yii::t('common','Closed'),
             self::CASE_STATUS_CLAIM_CANCELLED => Yii::t('common','Cancelled'),
             self::CASE_STATUS_CLAIM_REJECTED => Yii::t('common','Rejected'),
+        ];
+    }
+    public static function allClaimTypes()
+    {
+        return [
+            self::CLAIM_TYPE_REPAIR => Yii::t('common','Repair'),
+            self::CLAIM_TYPE_REPLACEMENT => Yii::t('common','Replacement'),
+            self::CLAIM_TYPE_UPGRADE => Yii::t('common','Upgrade'),
         ];
     }
 

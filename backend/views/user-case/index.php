@@ -86,6 +86,16 @@ $this->params['breadcrumbs'][] = $this->title;
                 'headerOptions' => ['width' => '150px'],
             ],
             [
+                'label'=>'Claim Types',
+                'format' => 'raw',
+                'attribute' => 'category',
+                'filter' => UserCase::allClaimTypes(),
+                'value' => function ($model) {
+                    return UserCase::allClaimTypes()[$model->category];
+                },
+                'headerOptions' => ['width' => '150px'],
+            ],
+            [
                 'attribute'=>'created_at',
                 'format' => 'raw',
                 'value' => function($model) {

@@ -24,7 +24,7 @@ class UserCaseSearch extends UserCase
     {
         return [
             [['id', 'plan_pool_id', 'user_id', 'created_by', 'updated_by'], 'integer'],
-            [['case_type', 'description', 'current_case_status', 'notes', 'status','full_name'], 'safe'],
+            [['case_type', 'description', 'current_case_status', 'notes', 'status','full_name', 'category'], 'safe'],
             [['created_at', 'updated_at'], 'date', 'format'=>'dd-MM-yyyy', 'message'=>'{attribute} must be DD/MM/YYYY format.']
         ];
     }
@@ -97,6 +97,7 @@ class UserCaseSearch extends UserCase
             'user_id' => $this->user_id,
             'created_by' => $this->created_by,
             'updated_by' => $this->updated_by,
+            'user_case.category' => $this->category,
         ]);
 
         $query->andFilterWhere(['like', 'case_type', $this->case_type])
