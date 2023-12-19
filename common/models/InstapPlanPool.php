@@ -299,7 +299,7 @@ class InstapPlanPool extends MyCustomActiveRecord
     public function getEWCoverageLayout() {
         $model = $this;
         $future = $model->ew_coverage_end_at; //Future date.
-        $timefromdb = strtotime('today'); //source time
+        $timefromdb = $model->ew_coverage_start_at; //source time
         $timeleft = $future-$timefromdb;
         $daysleft = round((($timeleft/24)/60)/60); 
         if($daysleft > 0){
